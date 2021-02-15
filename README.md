@@ -188,6 +188,7 @@ Computes occurrences and sequencing accuracy. Results are stored in Output/Trinu
 ---
 
 - [ ] Coming soon: generic version (for the moment low/high GC bact + human) only for low/high GC (remove all "bacteria"/"human" labels)
+- [ ] Coming soon: generate a PDF of all computed results, as a summary
 
 ---
 
