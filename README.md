@@ -65,6 +65,12 @@ For individual run of these analysis, use:
 
 User can use `seqfailr --all` or `seqfailr -a` to run all of this analysis at once.
 
+---
+
+# Toy example
+
+Some (part of) fastq files, and their associate reference genome, are available in Data/Raw_reads and Data/Reference_genomes to try this pipeline.
+
 
 ---
 
