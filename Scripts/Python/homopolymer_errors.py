@@ -827,7 +827,7 @@ def compute_results():
     plt.ylim(0.8, 150)
     plt.xlim(1.5, 9.5)
     plt.xlabel("Theoretical homopolymer lengths (reference genome)")
-    plt.ylabel("Errorless sequenced homopolymers ratio (reads)")
+    plt.ylabel("Sequenced hompolymer lengths (reads)")
 
     low_patch = mpatches.Patch(color=COLOR_LOW_GC, label='Low GC bacteria')
     high_patch = mpatches.Patch(color=COLOR_HIGH_GC, label='High GC bacteria')

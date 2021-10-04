@@ -134,7 +134,7 @@ def delete_wrong_alignments(SAM_FILENAME):
 
             if diff_soft_clip < 0:
                 to_keep = True
-            if sum_soft_clip_strand / (read_length + sum_soft_clip_strand) > 0.5:
+            if sum_soft_clip_strand / read_length > 0.5:
                 to_keep = False
 
         if not to_keep:
