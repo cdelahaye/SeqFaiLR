@@ -91,6 +91,10 @@ fi
 case $mode in
    mapping )
      ./Scripts/initialize.sh
+     if [ ! -d ./Scripts/minimap2 ]; then
+       echo "ERROR: Fail installing minimap2 aligner"
+       exit 1
+     fi
      ./Scripts/species_color_GC.sh
      ./Scripts/reverse_complement_references.sh
      ./Scripts/map.sh
