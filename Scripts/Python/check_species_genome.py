@@ -50,7 +50,7 @@ if __name__ == "__main__":
         else:
             species_name = path.split(".f")[0]
             if species_name in dict_genome_species:
-                dict_genome_species[species_name] += [filename]
+                dict_genome_species[species_name] += [path]
             else:
                 full_path = RAW_READS_DIR + "/" + path
                 print(f"ERROR: no reference genome found for species {full_path}",

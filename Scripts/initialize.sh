@@ -23,7 +23,7 @@ then
   echo "  Installing minimap2 aligner:"
   git clone https://github.com/lh3/minimap2
   mv minimap2 ./Scripts/
-  cd ./Scripts/minimap2 && make && cd ../
+  cd ./Scripts/minimap2 && make && cd ../..
   echo "    minimap2 installed."
 else
   echo "  minimap2 already installed."
@@ -36,7 +36,6 @@ else
   echo "Failed."
   exit 1
 fi
-
 echo ""
 
 
@@ -54,7 +53,7 @@ echo "Look at the organization of the species' folders"
 if [ -f "$output_groups" ]; then
   echo "  File $output_groups already exist, do not compute it again (or remove it first)"
 else
-  python3 -u ./Scripts/Python/species_groups.py $raw_read_dir $output_groups 
+  python3 -u ./Scripts/Python/species_groups.py $raw_read_dir $output_groups
   if [ $? -eq 0 ]; then
     echo "Done."
   else
@@ -66,7 +65,7 @@ echo ""
 
 
 # --- --- ---
-# Compute GC content of reference genome for each species, and assign it a color 
+# Compute GC content of reference genome for each species, and assign it a color
 #  for future graphs
 
 echo "Compute GC content of reference genome for each species, and assign it a color for future graphs"
