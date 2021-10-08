@@ -7,6 +7,7 @@ function show_usage (){
     echo ""
     echo "Options:"
     echo "-h|--help, display this help"
+    echo "-i|--init, initialize: download needed extra algorithms and build folder to organise analysis"
     echo "-m|--map, align reads against their reference genome"
     echo "-l|--low_complexity, analyses errors on low complextiy regions: hoompolymers, heteropolymers and trinucleotides"
     echo "   --homopolymers, analyses errors on homopolymeric regions"
@@ -34,6 +35,9 @@ fi
 case "$1" in
      -h | --help )
        show_usage
+       ;;
+     -i | --init )
+       mode=init
        ;;
      -m | --map )
        mode=mapping
@@ -89,14 +93,10 @@ fi
 # Run appropriate scripts
 
 case $mode in
-   mapping )
+   init )
      ./Scripts/initialize.sh
-     if [ ! -d ./Scripts/minimap2 ]; then
-       echo "ERROR: Fail installing minimap2 aligner"
-       exit 1
-     fi
-     ./Scripts/species_color_GC.sh
-     ./Scripts/reverse_complement_references.sh
+     ;;
+   mapping )
      ./Scripts/map.sh
      ./Scripts/alignment_explicit.sh
      ./Scripts/substitution_errors.sh

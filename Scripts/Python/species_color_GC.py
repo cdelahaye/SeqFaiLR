@@ -71,6 +71,6 @@ if __name__ == "__main__":
     for i, gc_content in enumerate(sorted(dict_gc_species.keys())):
         color = list_colors_hex[i]
         for species_name in dict_gc_species[gc_content]:
-            file.write(f"{species_name} ; {color} ; {round(gc_content, 2)}\n")
+            file.write(f"{species_name}\t{color}\t{round(gc_content, 2)}\n")
 
     file.close()
