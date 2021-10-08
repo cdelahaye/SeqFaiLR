@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#This script downloads needed extra algorithms 
+#This script downloads needed extra algorithms
 #  (minimap2, fastx_toolkit)
 #  and run some prerequisites for further analyses
 
@@ -27,10 +27,10 @@ then
   echo "    minimap2 installed."
 else
   echo "  minimap2 already installed."
+  echo "  version:"
+  ./Scripts/minimap2/minimap2 --version
 fi
 if [ $? -eq 0 ]; then
-  echo "Minimap2 version:"
-  ./Scripts/minimap2/minimap2 --version
   echo "Done."
 else
   echo "Failed."
@@ -44,7 +44,7 @@ echo ""
 # For more readability, or to ease comparison, species data can be grouped, instead
 #   of plotting all detailled results on graph.
 # Put your raw read data in subfolder to do so
-# If you do not want to group data, do not create subfolder and leave data as is in 
+# If you do not want to group data, do not create subfolder and leave data as is in
 #   ./Data/Raw_reads
 
 # This script will create text file with information of groups, and will be used for
