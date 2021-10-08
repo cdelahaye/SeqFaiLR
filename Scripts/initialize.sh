@@ -42,9 +42,10 @@ echo ""
 # --- --- ---
 # For more readability, or to ease comparison, species data can be grouped, instead
 #   of plotting all detailled results on graph.
-# Put your raw read data in subfolder to do so
-# If you do not want to group data, do not create subfolder and leave data as is in
-#   ./Data/Raw_reads
+# It will ask you a name (character or numbers, please avoid special character and space)
+# If you do not want to group data, answer "NO"
+# If you want to group all data together, answer "ALL"
+# You can still edit the file afterwards.
 
 # This script will create text file with information of groups, and will be used for
 #  analyses

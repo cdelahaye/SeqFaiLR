@@ -5,9 +5,10 @@
 """
 For more readability, or to ease comparison, species data can be grouped, instead
   of plotting all detailled results on graph.
-Put your raw read data in subfolder to do so
-If you do not want to group data, do not create subfolder and leave data as is in ./Data/Raw_reads
-If you want all your data to be merged on plots, create one subfolder and put all data into it.
+It will ask you a name (character or numbers, please avoid special character and space)
+If you do not want to group data, answer "NO"
+If you want to group all data together, answer "ALL"
+You can still edit the file afterwards.
 
 This script will create text file with information of groups, and will be used for analyses
 """
@@ -38,32 +39,46 @@ if __name__ == "__main__":
     RAW_READ_DIR = sys.argv[1]
     OUTPUT_FILENAME = sys.argv[2]
 
+    dict_group_species = {}
 
-    # Are path in RAW_READ_DIR files or subdirectories ?
-    test_dir_or_file = ["dir" if os.path.isdir(RAW_READ_DIR + "/" + path)
-                        else "file" if os.path.isfile(RAW_READ_DIR + "/" + path)
-                        else "unknown"
-                        for path in os.listdir(RAW_READ_DIR)]
+    # Ask if want to group all or group nothing
+    print("Do you want to group species on plots?")
+    print("  - If you want to group all species together, type ALL")
+    print("  - If you do not want to group species, type NO")
+    print("  - If you want to create multiple groups, type anything else!")
+    do_group_all_none = input("").upper()
 
-    # Verify that there are only files or only subdirectories but not both
-    if test_dir_or_file.count(test_dir_or_file[0]) != len(test_dir_or_file):
-        print("  Found directories AND files. Please either put all your data into subdirectories, " +
-              f"OR leave all your data in {RAW_READ_DIR} without making any subdirectory")
-        sys.exit(1)
+    if do_group_all_none == "ALL":
+        print(" Okay, I'll merge everything!")
+        group_name = "All data"
+        dict_group_species[group_name] = []
+    elif do_group_all_none == "NO":
+        print(" Okay, I wont merge anything!")
+        nb_color = len(os.listdir(RAW_READ_DIR))
+    else:
+        print(" Okay, now tell me more about it!")
+    print("")
 
 
-    # if not grouping of data -> leave it as is
-    if test_dir_or_file[0] == "file":
-        sys.exit(0)
+    for filename in os.listdir(RAW_READ_DIR):
+        if do_group_all_none == "ALL":
+            dict_group_species[group_name] += [filename]
+        elif do_group_all_none == "NO":
+            dict_group_species[filename] = [filename]
+        else:
+            group_name = input(f"  Which group for {filename}?\t")
+            if group_name not in dict_group_species:
+                dict_group_species[group_name] = []
+            dict_group_species[group_name] += [filename]
 
-    # if grouping data:
-    elif test_dir_or_file[0] == "dir":
-        nb_subdir = len(test_dir_or_file)
-        list_colors = sns.diverging_palette(240, 10, n=nb_subdir, as_cmap=False)
-        list_colors_hex = list_colors.as_hex() # get hexadecimal code for each color
-        print(f"  Storing information in {OUTPUT_FILENAME}")
-        output = open(OUTPUT_FILENAME, "w")
-        for i, subdir in enumerate(os.listdir(RAW_READ_DIR)):
-            for species in os.listdir(RAW_READ_DIR + "/" + subdir):
-                output.write(f"{subdir}\t{species}\t{list_colors_hex[i]}\n")
-        output.close()
+    nb_color = len(dict_group_species)
+    list_colors = sns.diverging_palette(240, 10, n=nb_color, as_cmap=False)
+    list_colors_hex = list_colors.as_hex() # get hexadecimal code for each color
+
+    output = open(OUTPUT_FILENAME, "w")
+
+    for i,group in enumerate(dict_group_species):
+        color = list_colors_hex[i]
+        for species in dict_group_species[group]:
+            output.write(f"{group}\t{species}\t{color}\n")
+    output.close()
