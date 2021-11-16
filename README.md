@@ -6,7 +6,7 @@ From raw reads and reference genomes, these scripts performs alignment and compu
 
 ---
 
-Documentation is available [here](https://app.gitbook.com/s/2tYbyMkyD5PmvrQAPiRD/c/iaku8q6R3PYNhDch4IhY/). Also in the [wiki](https://github.com/cdelahaye/SeqFaiLR/wiki) but it has nicer look on the gitbook :)
+Documentation is available [here](https://delahaye-clara.gitbook.io/seqfailr/)). Also in the [wiki](https://github.com/cdelahaye/SeqFaiLR/wiki) but it has nicer look on the gitbook :)
 
 ---
 
