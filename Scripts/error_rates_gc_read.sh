@@ -6,10 +6,13 @@ echo "Running $0"
 
 # Analyse explicit alignment files to compute error rates depending on GC content of reads.
 
-aln_expl_dir="./Data/Alignment" # input data: directory containing explicit alignment
-output_graph_dir="./Output/Error_rate_gc_read" # output directory: graphics
-output_raw_dir="./Analysis/Error_rate_gc_read" # output directory: raw results
-species_color_gc_file="./Data/species_gc_color.txt" # input file: contains gc content for each species and an associated color for graphs
+aln_expl_dir="./Data/Alignment/" # input data: directory containing explicit alignment
+output_graph_dir="./Output/Error_rate_gc_read/" # output directory: graphics
+output_raw_dir="./Analysis/Error_rate_gc_read/" # output directory: raw results
+file_color_gc_species="./Data/species_color_GC.txt" # file containing GC content of each species, and a dedicated color for plots
+file_species_groups="./Data/species_groups.txt" # file containing species groups
+nb_max_aln=$1
+min_occ=$2
 
 mkdir -p $output_raw_dir
 mkdir -p $output_graph_dir
@@ -27,8 +30,7 @@ fi
 
 
 # Runs the script
-python3 -u ./Scripts/Python/error_rate_reads_gc_content.py $aln_expl_dir $output_raw_dir $output_graph_dir $species_color_gc_file
+python3 -u ./Scripts/Python/error_rate_reads_gc_content.py $aln_expl_dir $output_raw_dir $output_graph_dir $file_color_gc_species $file_species_groups $nb_max_aln $min_occ
 
-echo ""
 echo "Done."
 echo "---"

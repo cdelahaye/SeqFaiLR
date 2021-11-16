@@ -4,7 +4,7 @@
 
 """
 Compute GC content of reference genome for each species.
-Then associate each species with a color (for graphs) and gc content.
+Then associate each species with a color (for graphs) and GC content.
 Output all of this in tab separated file
 """
 
@@ -39,6 +39,7 @@ if __name__ == "__main__":
 
     dict_gc_species = {}
 
+    # Browse each reference genome file and compute the associated GC content
     for ref_filename in os.listdir(REF_DIRNAME):
 
         if "_reverse" in ref_filename:
@@ -63,14 +64,17 @@ if __name__ == "__main__":
 
     nb_species = len(dict_gc_species.values())
 
+    # Associated each GC content to a color
     list_colors = sns.diverging_palette(240, 10, n=nb_species, as_cmap=False)
     list_colors_hex = list_colors.as_hex() # get hexadecimal code for each color
     #sns.palplot(list_colors) # to visualise
 
+
+    # Write output file
     file = open(OUTPUT, "w")
     for i, gc_content in enumerate(sorted(dict_gc_species.keys())):
         color = list_colors_hex[i]
         for species_name in dict_gc_species[gc_content]:
-            file.write(f"{species_name} ; {color} ; {round(gc_content, 2)}\n")
+            file.write(f"{species_name}\t{color}\t{round(gc_content, 2)}\n")
 
     file.close()

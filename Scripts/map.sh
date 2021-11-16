@@ -13,8 +13,12 @@ fi
 
 
 # 1/ Mapping reads
-echo "Step 1: Mapping reads"
+echo ""
+echo "Mapping reads"
 output_path=./Data/Mapping
+log_file=./logs/map.log
+echo "" > $log_file
+
 
 for path_raw_read_file in ./Data/Raw_reads/*.fastq
 do
@@ -30,16 +34,13 @@ do
   output_file=${output_path}/${species_name}.sam
   mkdir -p $output_path
   if [ -f $output_file ]; then
-    echo "SKIPPED ALIGNMENT"
-    echo "Alignement file already exists for species ${species_name}, so alignment will not be performed again. If you want the alignment to be performed, please remove $output_file first, then re-run this script."
-    echo ""
+    echo "  SKIPPED ALIGNMENT: Alignement file already exists for species ${species_name}, so alignment will not be performed again. If you want the alignment to be performed, please remove $output_file first, then re-run this script."
     continue
   fi
-  echo "Mapping reads for $species_name ($path_raw_read_file vs $reference_genome_file), on forward strand"
-  echo "Output .sam file will be stored in $output_file"
-  ./Scripts/minimap2/minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file > $output_file
-  echo "Done."
-  echo ""
+  echo -n "  $species_name: forward..."
+  echo "$species_name" >> $log_file
+  ./Scripts/minimap2/minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file 1> $output_file 2>>$log_file
+
 
   # Try to map on reverse strand of reference genome
   reference_genome_file=./Data/Reference_genomes/${species_name}_reverse.fasta
@@ -50,24 +51,20 @@ do
   output_file=${output_path}/${species_name}_reverse.sam
   mkdir -p $output_path
   if [ -f $output_file ]; then
-    echo "SKIPPED ALIGNMENT"
-    echo "Alignement file already exists for species ${species_name}, so alignment will not be performed again. If you want the alignment to be performed, please remove $output_file first, then re-run this script."
-    echo ""
+    echo "  SKIPPED ALIGNMENT: Alignement file already exists for species ${species_name}, so alignment will not be performed again. If you want the alignment to be performed, please remove $output_file first, then re-run this script."
     continue
   fi
-  echo "Mapping reads for $species_name ($path_raw_read_file vs $reference_genome_file)"
-  echo "Output .sam file will be stored in $output_file"
-  ./Scripts/minimap2/minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file > $output_file
-  echo "Done."
-  echo ""
-
+  echo -n "reverse..."
+  echo "---" >> $log_file
+  ./Scripts/minimap2/minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file 1> $output_file 2>>$log_file
+  echo "" >> $log_file
+  echo " Done."
 done
 
 
 # 2/ Cleaning alignment sam files
 echo ""
-echo "Step 2: Cleaning sam file for wrong mappings"
-echo ""
+echo "Clean sam file to remove wrong mappings"
 
 sam_dir=./Data/Mapping
 for sam_file in $sam_dir/*_reverse.sam
@@ -75,7 +72,7 @@ do
   sam_file=${sam_file/_reverse/}
   basename_sam_file=$(basename $sam_file)
   species_name=${basename_sam_file%.*}
-  echo $species_name
+  echo "  - $species_name"
   python3 -u ./Scripts/Python/clean_sam.py $species_name $sam_dir
 done
 
@@ -84,12 +81,10 @@ done
 sam_dir=./Data/Mapping
 for sam_file_reverse_clean in $sam_dir/*_reverse_clean.sam
 do
-  echo $sam_file_reverse_clean
   sam_file_forward_clean=${sam_file_reverse_clean/_reverse/}
   sam_file=${sam_file_forward_clean/_clean/}
   basename_sam_file=$(basename $sam_file)
   species_name=${basename_sam_file%.*}
-  echo $species_name
   sam_file_forward=${sam_file_forward_clean/_clean/}
   mv $sam_file_forward_clean $sam_file_forward
   sam_file_reverse=${sam_file_reverse_clean/_clean/}

@@ -11,7 +11,6 @@ Computes quality scores along raw (unaligned) reads
 
 import sys
 import os
-import ast
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.pylab as pl
@@ -61,15 +60,12 @@ def get_mean_quality(quality_str):
     mean_quality_score -= 33
     return mean_quality_score
 
-def get_short_name(long_species_name: str):
-    """ Returns a short version of species name
-         and replace underscores with spaces
-    For example: Staphylococcus_thermophilus_CNRZ1066 -> S. thermophilus CNRZ1066
-    """
-    list_long_species_name = long_species_name.split("_")
-    short_species_name = list_long_species_name[0][0] + ". "
-    short_species_name += " ".join(list_long_species_name[1:])
-    return short_species_name
+
+def get_short_name(long_name):
+    L_name = long_name.replace("_", " ").split(" ")
+    L_name[0] = L_name[0][0] + "."
+    short_name = " ".join(L_name)
+    return short_name
 
 
 
@@ -79,77 +75,93 @@ def get_short_name(long_species_name: str):
 if __name__ == "__main__":
 
     ## Parses arguments
-
-    if len(sys.argv) != 6:
-        print(f"ERROR: Wrong number of arguments: 5 expected but {len(sys.argv)-1} given.")
+    NUMBER_EXPECTED_ARGUMENTS = 6
+    if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
+        print(f"ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but {len(sys.argv)-1} given.")
         sys.exit(2)
-    RAW_READ_DIRNAME = sys.argv[1]
-    ALN_DIRNAME = sys.argv[2]
-    OUTPUT_RAW = sys.argv[3]
-    OUTPUT_PLOT = sys.argv[4]
-    FILENAME_COLOR_GC_SPECIES = sys.argv[5]
+    RAW_READ_DIRNAME, ALN_DIRNAME, OUTPUT_RAW, OUTPUT_PLOT, FILENAME_COLOR_GC_SPECIES, END_LENGTH = sys.argv[1:]
+    END_LENGTH = int(END_LENGTH)
 
-    if RAW_READ_DIRNAME[-1] != "/":
-        RAW_READ_DIRNAME += "/"
-    if ALN_DIRNAME[-1] != "/":
-        ALN_DIRNAME += "/"
-    if OUTPUT_PLOT[-1] != "/":
-        OUTPUT_PLOT += "/"
-    if OUTPUT_RAW[-1] != "/":
-        OUTPUT_RAW += "/"
 
+    print(f"   - Computes quality scores along raw reads, and at read ends ({END_LENGTH} bases)")
+
+
+    # --- Open output files ---
+    # quality along full reads
     output = open(OUTPUT_RAW + "quality_scores_along_reads.txt", "w")
     output.write("\t".join(["Species"] + list(map(str, np.arange(100)))) + "\n")
+    # quality of begining of reads
     output_start = open(OUTPUT_RAW + "quality_scores_along_reads_start.txt", "w")
-    output_start.write("\t".join(["Species"] + list(map(str, np.arange(0, 200, 1)))) + "\n")
+    output_start.write("\t".join(["Species"] + list(map(str, np.arange(0, END_LENGTH, 1)))) + "\n")
+    # quality of ending of reads
     output_end = open(OUTPUT_RAW + "quality_scores_along_reads_end.txt", "w")
-    output_end.write("\t".join(["Species"] + list(map(str, np.arange(200, 0, -1)))) + "\n")
+    output_end.write("\t".join(["Species"] + list(map(str, np.arange(END_LENGTH, 0, -1)))) + "\n")
 
-    number_of_split = 100
 
+    # --- Prepare plot ---
     gs = gridspec.GridSpec(2, 2)
-
     fig = plt.figure()
     ax = plt.subplot(gs[0, :])
     plt.subplots_adjust(left=0.1, bottom=0.1, right=0.95, top=0.95, wspace=0.2, hspace=0.2)
     fig.set_dpi(300.0)
+    number_of_split = 100 # split reads into 100 parts (%)
+
+    # --- Get color associated to each species ---
+    dict_species_color = {}
+    dict_gc_species = {}
+    color_file = open(FILENAME_COLOR_GC_SPECIES, "r")
+    for line in color_file:
+        sp_name, color, gc = line.rstrip().split("\t")
+        sp_name = sp_name.replace(" ", "_")
+        sp_name = get_short_name(sp_name)
+        gc = float(gc)
+        if color[0] != "#":
+            color = "#" + color
+        dict_species_color[sp_name] = color
+        if gc not in dict_gc_species:
+            dict_gc_species[gc] = []
+        dict_gc_species[gc] += [sp_name]
+    color_file.close()
+    list_ordered_species_gc = []
+    for gc in sorted(dict_gc_species):
+        for elt in dict_gc_species[gc]:
+            list_ordered_species_gc += [elt]
 
 
-
+    # --- Browse fastq files to get quality scores ---
     for raw_read_filename in os.listdir(RAW_READ_DIRNAME):
-        if ".fastq" not in raw_read_filename:
-            continue
-
         if os.path.isdir(raw_read_filename) or ".fastq" not in raw_read_filename:
             continue
 
-        print(raw_read_filename)
-
         species_name = raw_read_filename.split(".fastq")[0]
+        print("  ", species_name)
         species_name_short = get_short_name(species_name)
-        dict_position_quality = {} # Store list of mean quality scores for each % position (0-99)
+
+        # Prepare dictionaries that will store results
+        #   Full read: store list of mean quality scores for each % position (0-99)
+        dict_position_quality = {}
         for position in range(number_of_split):
             dict_position_quality[position] = [0, 0] # sum of qualities, nb of occurrences
-
-        # Zoom on both ends of reads
+        #   Ends of reads
         dict_position_quality_start, dict_position_quality_end = {}, {}
-        for position in range(200):
+        for position in range(END_LENGTH):
             dict_position_quality_start[position] = [0, 0]
             dict_position_quality_end[position] = [0, 0]
 
+        # --- Get quality scores for full reads, and "zoom" on reads' ends ---
         raw_read_file = open(RAW_READ_DIRNAME + raw_read_filename, "r")
         while True:
             header = raw_read_file.readline()
             if not header:
                 break
             raw_read_file.readline() # skip read line, useless here
-            raw_read_file.readline() # skip useless linking line
+            raw_read_file.readline() # skip linking line, useless too
             quality_score_str = raw_read_file.readline().rstrip()
 
-            if len(quality_score_str) < number_of_split:
+            if len(quality_score_str) < number_of_split: # do not include too short reads
                 continue
 
-            # Split quality scores into 100 parts
+            # Split quality scores (full read)
             quality_score_list = split(quality_score_str, number_of_split)
             # Store results into dictionary:
             #  for each % position, store mean quality scores for this given position
@@ -158,10 +170,9 @@ if __name__ == "__main__":
                 dict_position_quality[position][0] += quality_score
                 dict_position_quality[position][1] += 1
 
-
-            # Zoom on both ends of reads
-            quality_score_start = quality_score_str[:200]
-            quality_score_end = quality_score_str[-200:]
+            # Compute quality on ends of reads
+            quality_score_start = quality_score_str[:END_LENGTH]
+            quality_score_end = quality_score_str[-END_LENGTH:]
             for position, quality_score in enumerate(quality_score_start):
                 dict_position_quality_start[position][0] += ord(quality_score)
                 dict_position_quality_start[position][1] += 1
@@ -171,7 +182,8 @@ if __name__ == "__main__":
 
         raw_read_file.close()
 
-        # For the given species, compute mean quality scores for each %, accross each read analysed
+        # --- For the given species, compute mean quality scores for each %,
+        #     accross each read analysed ---
         list_positions, list_quality_scores = [], []
         for position in sorted(dict_position_quality):
             list_positions += [position]
@@ -185,47 +197,9 @@ if __name__ == "__main__":
             sum_qualities, nb_occurrences = dict_position_quality_end[position]
             list_quality_scores_end += [sum_qualities / nb_occurrences]
 
-        #  reorder legend's labels
-        dict_species_color = {}
-        dict_gc_species = {}
-        color_file = open(FILENAME_COLOR_GC_SPECIES, "r")
-        for line in color_file:
-            sp_name, color, gc = line.rstrip().split(" ; ")
-            sp_name = sp_name.replace(" ", "_")
-            sp_name = get_short_name(sp_name)
-            gc = float(gc)
-            if color[0] != "#":
-                color = "#" + color
-            dict_species_color[sp_name] = color
-            if gc not in dict_gc_species:
-                dict_gc_species[gc] = []
-            dict_gc_species[gc] += [sp_name]
-        color_file.close()
-        list_ordered_species_gc = []
-        for gc in sorted(dict_gc_species):
-            for elt in dict_gc_species[gc]:
-                list_ordered_species_gc += [elt]
 
-        #      plot results for each species
-        plt.plot(list_positions, list_quality_scores, label=species_name_short,
-                 color=dict_species_color[species_name_short])
-        plt.xticks(ticks=np.arange(0, number_of_split+1, 10),
-                   labels=np.arange(0, number_of_split+1, 10))
-
-        plt.xlabel("Relative position in read (%)")
-        plt.ylabel("Mean quality score")
-
-
-        handles, labels = plt.gca().get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        ordered_label_list = [elt for elt in list_ordered_species_gc if elt in by_label]
-        ordered_label_values = [by_label[k] for k in ordered_label_list]
-
-        plt.legend(ordered_label_values, ordered_label_list, ncol=3, title="Species")
-
-        plt.savefig(OUTPUT_PLOT + "quality_scores_along_reads.png")
-
-        # Store results in raw txt file
+        # --- Store results in raw txt file ---
+        # for full read
         output.write("\t".join([species_name_short] + list(map(str, list_quality_scores))) + "\n")
         # store results for ends of reads
         output_start.write("\t".join([species_name_short] +
@@ -234,29 +208,37 @@ if __name__ == "__main__":
                                    list(map(str, list_quality_scores_end))) + "\n")
 
 
+        # Plot results for each species
+        plt.plot(list_positions, list_quality_scores, label=species_name_short,
+                 color=dict_species_color[species_name_short])
+        plt.xticks(ticks=np.arange(0, number_of_split+1, 10),
+                   labels=np.arange(0, number_of_split+1, 10))
 
+    # Labels and legend
+    plt.xlabel("Relative position in read (%)")
+    plt.ylabel("Mean quality score")
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    ordered_label_list = [elt for elt in list_ordered_species_gc if elt in by_label]
+    ordered_label_values = [by_label[k] for k in ordered_label_list]
+    plt.legend(ordered_label_values, ordered_label_list, ncol=3, title="Species")
 
-    # Close files
+    # Close output files
     output.close()
     output_start.close()
     output_end.close()
 
-
-    # Add plots of results for ends of reads
-
-    #  reorder legend's labels
-
-    plt.legend(ordered_label_values, ordered_label_list, ncol=3, title="Species")
+    plt.savefig(OUTPUT_PLOT + "quality_scores_along_reads.png")
 
 
-    # start
+    # --- Add plots of results for ends of reads ---
+    label_step = int(END_LENGTH/80)*10
+
+    # Start
     ax = pl.subplot(gs[1, 0])
-    pl.plot([0,1])
-
     result_file = open(OUTPUT_RAW + "quality_scores_along_reads_start.txt", "r")
-
     header = result_file.readline().rstrip()
-    list_positions = np.arange(200)
+    list_positions = np.arange(END_LENGTH)
     for line in result_file:
         line = line.rstrip()
         list_qualities_str = line.split("\t")[1:]
@@ -264,17 +246,16 @@ if __name__ == "__main__":
         species_name = line.split("\t")[0]
         plt.plot(list_positions, list_qualities, color=dict_species_color[species_name])
     result_file.close()
-    plt.xticks(ticks=np.arange(0, 201, 20), labels=np.arange(0, 201, 20))
-    plt.ylim(33, 65)
-    plt.xlabel("n first positions in the read")
+    plt.xticks(ticks=np.arange(0, END_LENGTH+1, label_step),
+               labels=np.arange(0, END_LENGTH+1, label_step))
+    plt.xlabel("First positions in the read")
     plt.ylabel("Mean quality score")
 
-    # end
+    # End
     ax = pl.subplot(gs[1, 1])
-    pl.plot([0,1])
     result_file = open(OUTPUT_RAW + "quality_scores_along_reads_end.txt", "r")
     header = result_file.readline().rstrip()
-    list_positions = np.arange(200)
+    list_positions = np.arange(END_LENGTH)
     for line in result_file:
         line = line.rstrip()
         list_qualities_str = line.split("\t")[1:]
@@ -282,9 +263,9 @@ if __name__ == "__main__":
         species_name = line.split("\t")[0]
         plt.plot(list_positions, list_qualities, color=dict_species_color[species_name])
     result_file.close()
-    plt.xticks(ticks=np.arange(0, 201, 20), labels=np.arange(200, -1, -20))
-    plt.ylim(33, 65)
-    plt.xlabel("n last positions in the read")
+    plt.xticks(ticks=np.arange(0, END_LENGTH+1, label_step),
+               labels=np.arange(END_LENGTH, -1, -label_step))
+    plt.xlabel("Last positions in the read")
     plt.ylabel("Mean quality score")
 
     plt.savefig(OUTPUT_PLOT + "quality_scores_along_reads.png")

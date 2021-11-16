@@ -7,11 +7,12 @@ echo "Running $0"
 # From raw fastq files, plots quality along read (relative position).
 # Also uses information from alignment to get mean number of bases clipped at read start and end
 
-raw_reads_dir="./Data/Raw_reads" # input data: directory containing fastq files of raw reads
-aln_expl_dir="./Data/Alignment" # input data: directory containing explicit alignment
-output_graph_dir="./Output/Quality_along_reads" # output directory: graphics
-output_raw_dir="./Analysis/Quality_along_reads" # output directory: raw results
-path_file_color_gc_species="./Data/species_gc_color.txt" # file containing GC content of each species, and a dedicated color for plots
+raw_reads_dir="./Data/Raw_reads/" # input data: directory containing fastq files of raw reads
+aln_expl_dir="./Data/Alignment/" # input data: directory containing explicit alignment
+output_graph_dir="./Output/Quality_along_reads/" # output directory: graphics
+output_raw_dir="./Analysis/Quality_along_reads/" # output directory: raw results
+file_color_gc_species="./Data/species_color_GC.txt" # file containing GC content of each species, and a dedicated color for plots
+read_end_length=$1 # size of read ends (for plot)
 
 mkdir -p $output_raw_dir
 mkdir -p $output_graph_dir
@@ -37,7 +38,7 @@ fi
 
 
 # Runs the script
-python3 -u ./Scripts/Python/quality_along_raw_reads.py $raw_reads_dir $aln_expl_dir $output_raw_dir $output_graph_dir $path_file_color_gc_species
+python3 -u ./Scripts/Python/quality_along_raw_reads.py $raw_reads_dir $aln_expl_dir $output_raw_dir $output_graph_dir $file_color_gc_species $read_end_length
 
 echo ""
 echo "Done."

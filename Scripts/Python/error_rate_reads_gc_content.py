@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-For each category of gc content (low / high gc content for bacteria + human), computes
-mean error rates (total and detailled) depending on the GC content of the read
+For each group, computes mean error rates (total and detailled)
+depending on the GC content of the read
 """
 
 
@@ -12,9 +12,7 @@ mean error rates (total and detailled) depending on the GC content of the read
 
 import sys
 import os
-import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
 
 params = {'legend.fontsize': 16,
           'legend.title_fontsize': 16,
@@ -33,7 +31,51 @@ plt.rcParams.update(params)
 # --------------------------------------------------------------------------------------------------
 # Functions
 
-def get_error_rates() :
+def get_groups(filename):
+    """
+    Returns a dictionary of species names (keys), associated with their group name (value)
+    Also a similar dictionary that associated species names (keys) with color of their group (value)
+    """
+    dictionary_group = {}
+    dictionary_color = {}
+    file = open(filename, "r")
+    for line in file:
+        group_name, species_name, color = line.rstrip().split("\t")
+        species_name = species_name.split(".")[0]
+        dictionary_group[species_name] = group_name
+        dictionary_color[group_name] = color
+    file.close()
+
+    return dictionary_group, dictionary_color
+
+def get_gc_color(filename):
+    """
+    Returns a dictionary of species names (keys), associated with a color (value) attributed
+    according to its GC content
+    Also compute a list of increasing GC content species names
+    """
+    dictionary = {}
+    dict_gc_species = {}
+    file = open(filename, "r")
+    for line in file:
+        species_name, color, gc = line.rstrip().split("\t")
+        dictionary[species_name] = color
+        if gc not in dict_gc_species:
+            dict_gc_species[gc] = []
+        dict_gc_species[gc] += [species_name]
+    file.close()
+
+    list_ordered_species_gc = []
+    for gc in sorted(dict_gc_species):
+        list_ordered_species_gc += [elt for elt in dict_gc_species[gc]]
+
+    return dictionary, list_ordered_species_gc
+
+
+
+
+
+def get_error_rates(genome, read) :
     """ Computes error rates (total, mismatch, insertion and deletion) for a given alignment
     between a genome and and read
     """
@@ -50,18 +92,169 @@ def get_error_rates() :
         elif base_genome != base_read :
             mismatches += 1
     total = round((mismatches + insertions + deletions) / length * 100, 1)
-    mismatches = round(mismatches / length * 100, 2)
-    insertions = round(insertions / length * 100, 2)
-    deletions = round(deletions / length * 100, 2)
+    mismatches = round(mismatches / length * 100, 4)
+    insertions = round(insertions / length * 100, 4)
+    deletions = round(deletions / length * 100, 4)
     return [total, mismatches, insertions, deletions]
 
 
-def get_gc_content_of_read():
+def get_gc_content_of_read(read):
     """ Computes the GC content of a given read
     """
     r = read.replace("-", "")
     gc_content = round((r.count("G") + r.count("C")) / len(r) * 100)
     return gc_content
+
+
+
+def get_error_rates_gc():
+    """
+    Parse alignment files to get error rates depending on GC content of reads
+    Store results in dictionary
+    """
+    dictionary = {}
+
+    for aln_filename in os.listdir(ALN_EXPL_DIRNAME):
+        if os.path.isdir(ALN_EXPL_DIRNAME + aln_filename):
+            continue
+
+        # Get species name
+        species_name = aln_filename.split(".txt")[0]
+        print("  ", species_name)
+
+        # --- Parse alignment file ---
+        file = open(ALN_EXPL_DIRNAME + aln_filename, "r")
+
+        # initialize dictionary
+        dictionary[species_name] = {}
+        for error_type in L_error_types:
+            dictionary[species_name][error_type] = {}
+
+        aln_count = 0 # count number of alignments processed
+        while True:
+            header = file.readline()
+            if not header:
+                break
+            genome = file.readline().rstrip()
+            read = file.readline().rstrip()
+
+            # Threshold if you want to limit analyses and speed up computation
+            aln_count += 1
+            if aln_count > NB_MAX_ALN:
+                break
+
+            # Get GC content and error rate of read
+            gc = get_gc_content_of_read(read)
+            L_error_rates = get_error_rates(genome, read)
+
+            # Update dictionary
+            for i, error_rate in enumerate(L_error_rates):
+                error_type = L_error_types[i]
+                if gc not in dictionary[species_name][error_type]:
+                    dictionary[species_name][error_type][gc] = [0, 0] # error rate value, occurrences
+                dictionary[species_name][error_type][gc][0] += error_rate
+                dictionary[species_name][error_type][gc][1] += 1
+        file.close()
+
+    return dictionary
+
+
+
+def gather_results_groups(dictionary_results_species, dictionary_groups):
+    """
+    From a dictionary_results_species that stored results for each species, gather these results
+    in groups of species, as defined by user
+    """
+    dictionary = {}
+    for species_name in dictionary_results_species:
+        group_name = dictionary_groups[species_name]
+        if group_name not in dictionary:
+            dictionary[group_name] = {}
+            for error_type in L_error_types:
+                dictionary[group_name][error_type] = {}
+        for error_type in L_error_types:
+            for gc in dictionary_results_species[species_name][error_type]:
+                sum_errors, nb_occ_errors = dictionary_results_species[species_name][error_type][gc]
+                if gc not in dictionary[group_name][error_type]:
+                    dictionary[group_name][error_type][gc] = [0, 0]
+                dictionary[group_name][error_type][gc][0] += sum_errors
+                dictionary[group_name][error_type][gc][1] += nb_occ_errors
+    return dictionary
+
+def get_short_name(long_name):
+    L_name = long_name.replace("_", " ").split(" ")
+    L_name[0] = L_name[0][0] + "."
+    short_name = " ".join(L_name)
+    return short_name
+
+
+def write_results(dictionary, output_filename):
+    """
+    Write results in output_filename, as follow:
+        - name of species (or group)
+        - list (tab separated) of gc content
+        - list (tab separated) of associated mean XXX error rate (for each XXX eror type)
+
+    """
+    file = open(OUTPUT_RAW + output_filename, "w")
+    for entity in dictionary: # can be a species or a group
+        file.write(f"{entity}\n")
+        for error_type in dictionary[entity]:
+            L_gc = []
+            L_mean_error_rate = []
+            for gc in sorted(dictionary[entity][error_type]):
+                sum_errors, nb_occurences = dictionary[entity][error_type][gc]
+                L_gc += [str(gc)]
+                L_mean_error_rate += [str(round(sum_errors / nb_occurences, 4))]
+            file.write("GC\t" + "\t".join(L_gc) + "\n")
+            file.write(f"{error_type}\t" + "\t".join(L_mean_error_rate) + "\n")
+        file.write("\n")
+    file.close()
+
+
+def plot_results(dictionary, output_filename, dict_colors, L_order, category):
+    """
+    Plot results contained in dictionary, in output_filename
+    """
+
+    for error_type in L_error_types:
+        # initialize plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        fig.set_dpi(300.0)
+        box = ax.get_position()
+        ax.set_position([0.1, 0.12, box.width*0.8, box.height])
+
+        # add results for each species
+        for entity in dictionary:
+            color = dict_colors[entity]
+            L_gc, L_error_rate = [], []
+            for gc in sorted(dictionary[entity][error_type]):
+                sum_errors, nb_occurrences = dictionary[entity][error_type][gc]
+                error_rate = sum_errors / nb_occurrences
+                L_gc += [gc]
+                L_error_rate += [error_rate]
+            ax.plot(L_gc, L_error_rate, color=color, label=entity)
+
+        # Labels and legend
+        ax.set(xlabel='Relative position in reference genome (%)',
+               ylabel=f"{error_type} error rate (%)")
+        #   reorder legend labels
+        handles, labels = ax.get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        ordered_label_list = [elt for elt in L_order if elt in by_label]
+        ordered_label_values = [by_label[k] for k in ordered_label_list]
+        if category == "Species":
+            ordered_label_list_short_name = [get_short_name(elt) for elt in ordered_label_list]
+        else:
+            ordered_label_list_short_name = [elt for elt in ordered_label_list]
+        ax.legend(ordered_label_values, ordered_label_list_short_name, title=category,
+                  fontsize=12, title_fontsize=14,
+                   bbox_to_anchor=(1, 1)) # place legend outside plot
+        plt.savefig(OUTPUT_PLOT + output_filename.replace(".png", f"_{error_type}.png"))
+        plt.close()
+
+
 
 
 # --------------------------------------------------------------------------------------------------
@@ -71,260 +264,37 @@ if __name__ == "__main__":
 
 
     ## Parses arguments
-    if len(sys.argv) != 5:
-        print(f"ERROR: Wrong number of arguments: 4 expected but {len(sys.argv)-1} given.")
+    NUMBER_EXPECTED_ARGUMENTS = 7
+    if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
+        print(f"ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but {len(sys.argv)-1} given.")
         sys.exit(2)
-    ALN_EXPL_DIRNAME = sys.argv[1]
-    OUTPUT_RAW = sys.argv[2]
-    OUTPUT_PLOT = sys.argv[3]
-    FILENAME_SPECIES_GC = sys.argv[4]
+    ALN_EXPL_DIRNAME, OUTPUT_RAW, OUTPUT_PLOT, FILE_SPECIES_GC, FILE_SPECIES_GROUPS, NB_MAX_ALN, MIN_OCC_TO_PLOT= sys.argv[1:]
+    NB_MAX_ALN = int(NB_MAX_ALN)
+    MIN_OCC_TO_PLOT = int(MIN_OCC_TO_PLOT) # Minimal number of occurences for a certain GC content value to be plot
+
+    if NB_MAX_ALN == -1:
+        NB_MAX_ALN = float("inf")
+
+    # Get group of each species
+    dict_species_group, dict_species_group_color = get_groups(FILE_SPECIES_GROUPS)
+    dict_species_gc_color, L_ordered_species = get_gc_color(FILE_SPECIES_GC)
+
+    # List of error categories, and associated colors for plot
+    L_error_types = ["Total", "Mismatch", "Insertion", "Deletion"]
 
 
-    if ALN_EXPL_DIRNAME[-1] != "/":
-        ALN_EXPL_DIRNAME += "/"
-    if OUTPUT_PLOT[-1] != "/":
-        OUTPUT_PLOT += "/"
-    if OUTPUT_RAW[-1] != "/":
-        OUTPUT_RAW += "/"
+    # Parse alignments to get error rates depending on GC content
+    #   the dictionary will store, for each species, the error rate depending on GC content of reads
+    dict_gc_error = get_error_rates_gc()
+    dict_gc_error_group = gather_results_groups(dict_gc_error, dict_species_group)
 
+    # Write results in raw txt file
+    write_results(dict_gc_error, "error_rate_gc_species.txt") # for each species
+    write_results(dict_gc_error_group, "error_rate_gc_groups.txt") # for each group
 
-    # Get GC category for each species
-    dict_species_gc_category = {}
-    file = open(FILENAME_SPECIES_GC, "r")
-    for line in file:
-        species_name, _, gc = line.rstrip().split(" ; ")
-        species_name = species_name.replace(" ", "_")
-        gc = float(gc)
-        if "Human" in species_name:
-            category = "human"
-        elif gc < 50:
-            category = "low GC"
-        else:
-            category = "high GC"
-        dict_species_gc_category[species_name] = category
-    file.close()
+    # Plot results
+    plot_results(dict_gc_error, "error_rate_gc_species.png", # for each species, ordered according GC content
+                 dict_species_gc_color, L_ordered_species, "Species")
+    plot_results(dict_gc_error_group, "error_rate_gc_groups.png", # for each group, ordered alphabetically
+                 dict_species_group_color, sorted(set(dict_species_group.values())), "Groups")
 
-
-    # Initiate dictionary that will store, for each GC category, the error rates depending on
-    #   GC content of reads
-    dict_error_rates = {}
-    list_error_type = ["total", "mismatch", "insertion", "deletion"]
-
-
-    # Parse alignments to get error rates
-    for aln_filename in os.listdir(ALN_EXPL_DIRNAME):
-
-        species_name = aln_filename.split(".txt")[0]
-        gc_category = dict_species_gc_category[species_name]
-        print(species_name, gc_category)
-        file = open(ALN_EXPL_DIRNAME + aln_filename, "r")
-
-        dict_error_rates[species_name] = {}
-        for error_type in list_error_type:
-            dict_error_rates[species_name][error_type] = {}
-
-        aln_count = 0 # count number of alignments processed
-        while True:
-            header = file.readline()
-            if not header:
-                break
-            genome = file.readline()
-            read = file.readline()
-            aln_count += 1
-            #if aln_count > 500000: # bound number of analysed alignments
-            #    break
-            if aln_count % 1000 == 0:
-                print(f"{aln_count} alignment analysed")
-            gc_content_read = get_gc_content_of_read()
-            list_error_rates = get_error_rates()
-
-            for i, error_rate in enumerate(list_error_rates):
-                error_type = list_error_type[i]
-                if gc_content_read not in dict_error_rates[species_name][error_type]:
-                    dict_error_rates[species_name][error_type][gc_content_read] = [0, 0]
-                dict_error_rates[species_name][error_type][gc_content_read][0] += error_rate
-                dict_error_rates[species_name][error_type][gc_content_read][1] += 1
-        file.close()
-
-        # plot for bacteria
-        dict_gc_read_errors = {}
-        threshold = 100 # minimum occurrences to plot
-        for species_name in dict_error_rates:
-            gc_category = dict_species_gc_category[species_name]
-            if gc_category not in ["low GC", "high GC"]:
-                continue
-            for gc_content_read in sorted(dict_error_rates[species_name]["mismatch"]):
-                total_mismatches, occ_mismatches = dict_error_rates[species_name]["mismatch"][gc_content_read]
-                total_insertions, occ_insertions = dict_error_rates[species_name]["insertion"][gc_content_read]
-                total_deletions, occ_deletions = dict_error_rates[species_name]["deletion"][gc_content_read]
-                if gc_content_read not in dict_gc_read_errors:
-                    dict_gc_read_errors[gc_content_read] = [[], [], [], 0]
-                dict_gc_read_errors[gc_content_read][0] += [total_mismatches / occ_mismatches]
-                dict_gc_read_errors[gc_content_read][1] += [total_insertions / occ_insertions]
-                dict_gc_read_errors[gc_content_read][2] += [total_deletions / occ_deletions]
-                dict_gc_read_errors[gc_content_read][3] += occ_deletions
-
-
-        list_mismatches, list_insertions, list_deletions = [], [], []
-        list_gc_read = []
-        for gc_content in sorted(dict_gc_read_errors):
-            if dict_gc_read_errors[gc_content][3] < threshold:
-                continue
-            list_gc_read += [gc_content]
-            list_mismatches += [np.median(dict_gc_read_errors[gc_content][0])]
-            list_insertions += [np.median(dict_gc_read_errors[gc_content][1])]
-            list_deletions += [np.median(dict_gc_read_errors[gc_content][2])]
-
-        plt.plot(list_gc_read, list_mismatches, label="Mismatch", color="#DDAA33")
-        plt.plot(list_gc_read, list_insertions, label="Insertion", color="#BB5566")
-        plt.plot(list_gc_read, list_deletions, label="Deletion", color="#004488")
-        #  total for high and low gc bacteria
-        dict_gc_read_errors_low, dict_gc_read_errors_high = {}, {}
-        for species_name in dict_error_rates:
-            gc_category = dict_species_gc_category[species_name]
-            for gc_content_read in sorted(dict_error_rates[species_name]["total"]):
-                total_err, occ_total_err = dict_error_rates[species_name]["total"][gc_content_read]
-                if occ_total_err < threshold:
-                    continue
-                if gc_category == "low GC":
-                    if gc_content_read not in dict_gc_read_errors_low:
-                        dict_gc_read_errors_low[gc_content_read] = [[], 0]
-                    dict_gc_read_errors_low[gc_content_read][0] += [total_err / occ_total_err]
-                    dict_gc_read_errors_low[gc_content_read][1] += occ_total_err
-                elif gc_category == "high GC":
-                    if gc_content_read not in dict_gc_read_errors_high:
-                        dict_gc_read_errors_high[gc_content_read] = [[], 0]
-                    dict_gc_read_errors_high[gc_content_read][0] += [total_err / occ_total_err]
-                    dict_gc_read_errors_high[gc_content_read][1] += occ_total_err
-        list_gc_low, list_gc_high = [], []
-        list_total_err_low, list_total_err_high = [], []
-        for gc_content_read in sorted(dict_gc_read_errors_low):
-            if dict_gc_read_errors_low[gc_content_read][1] < threshold:
-                continue
-            list_gc_low += [gc_content_read]
-            list_total_err_low += [np.median(dict_gc_read_errors_low[gc_content_read][0])]
-        for gc_content_read in sorted(dict_gc_read_errors_high):
-            if dict_gc_read_errors_high[gc_content_read][1] < threshold:
-                continue
-            list_gc_high += [gc_content_read]
-            list_total_err_high += [np.median(dict_gc_read_errors_high[gc_content_read][0])]
-        plt.plot(list_gc_low, list_total_err_low, "-.", linewidth=2.5, color="black")
-        plt.plot(list_gc_high, list_total_err_high, "--", linewidth=2.5, color="black")
-        plt.ylim(0, 10)
-        plt.xlim(25, 70)
-        plt.xticks(np.arange(25, 71, 5))
-
-        plt.xlabel('GC content of sequenced read (%)')
-        plt.ylabel('Error rates (%)')
-        # Legend
-        deletion_label = Line2D([0], [0], color="#004488", linewidth=2, linestyle='-')
-        mismatch_label = Line2D([0], [0], color="#DDAA33", linewidth=2, linestyle='-')
-        insertion_label = Line2D([0], [0], color="#BB5566", linewidth=2, linestyle='-')
-        tot_err_low_label = Line2D([0], [0], color="k", linewidth=2, linestyle='-.')
-        tot_err_high_label = Line2D([0], [0], color="k", linewidth=2, linestyle='--')
-        L_lines = [deletion_label, mismatch_label, insertion_label,
-                   tot_err_low_label, tot_err_high_label]
-        labels = ["Deletions", "Mismatch", "Insertion", "Total (low GC)", "Total (high GC)"]
-        plt.legend(L_lines, labels, loc=2, ncol=2)
-        plt.savefig(OUTPUT_PLOT + "error_rate_gc_read_bacteria.png")
-        plt.close()
-
-        # Write bacterial results in raw file
-        file = open(OUTPUT_RAW + "error_rate_gc_read_bacteria.txt", "w")
-        file.write("---\n")
-        file.write("GC content of reads and total error rates for low GC bacteria\n")
-        file.write(f"{list_gc_low}\n")
-        file.write(f"{list_total_err_low}\n")
-        file.write("---\n")
-        file.write("GC content of reads and total error rates for high GC bacteria\n")
-        file.write(f"{list_gc_high}\n")
-        file.write(f"{list_total_err_high}\n")
-        file.write("---\n")
-        file.write("GC content of reads and mismatch/insertion/deletion error rates for bacteria\n")
-        file.write(f"{list_gc_read}\n")
-        file.write(f"{list_mismatches}\n{list_insertions}\n{list_deletions}\n")
-        file.close()
-
-
-        # plot for human
-        dict_gc_read_errors = {}
-        threshold = 1000
-        for species_name in dict_error_rates:
-            gc_category = dict_species_gc_category[species_name]
-            if gc_category not in ["human"]:
-                continue
-            for gc_content_read in sorted(dict_error_rates[species_name]["mismatch"]):
-                total_mismatches, occ_mismatches = dict_error_rates[species_name]["mismatch"][gc_content_read]
-                total_insertions, occ_insertions = dict_error_rates[species_name]["insertion"][gc_content_read]
-                total_deletions, occ_deletions = dict_error_rates[species_name]["deletion"][gc_content_read]
-                if occ_mismatches < threshold:
-                    continue
-                if gc_content_read not in dict_gc_read_errors:
-                    dict_gc_read_errors[gc_content_read] = [[], [], [], 0]
-                dict_gc_read_errors[gc_content_read][0] += [total_mismatches / occ_mismatches]
-                dict_gc_read_errors[gc_content_read][1] += [total_insertions / occ_insertions]
-                dict_gc_read_errors[gc_content_read][2] += [total_deletions / occ_deletions]
-                dict_gc_read_errors[gc_content_read][3] += occ_deletions
-
-        list_mismatches, list_insertions, list_deletions = [], [], []
-        list_gc_read = []
-        for gc_content in sorted(dict_gc_read_errors):
-            if dict_gc_read_errors[gc_content][3] < threshold:
-                continue
-            list_gc_read += [gc_content]
-            list_mismatches += [np.median(dict_gc_read_errors[gc_content][0])]
-            list_insertions += [np.median(dict_gc_read_errors[gc_content][1])]
-            list_deletions += [np.median(dict_gc_read_errors[gc_content][2])]
-
-        plt.plot(list_gc_read, list_mismatches, label="Mismatch", color="#DDAA33")
-        plt.plot(list_gc_read, list_insertions, label="Insertion", color="#BB5566")
-        plt.plot(list_gc_read, list_deletions, label="Deletion", color="#004488")
-        #  total
-        dict_gc_read_errors_human = {}
-        for species_name in dict_error_rates:
-            gc_category = dict_species_gc_category[species_name]
-            if gc_category != "human":
-                continue
-            for gc_content_read in sorted(dict_error_rates[species_name]["total"]):
-                total_err, occ_total_err = dict_error_rates[species_name]["total"][gc_content_read]
-                if occ_total_err < threshold:
-                    continue
-                if gc_content_read not in dict_gc_read_errors_human:
-                    dict_gc_read_errors_human[gc_content_read] = [[], 0]
-                dict_gc_read_errors_human[gc_content_read][0] += [total_err / occ_total_err]
-                dict_gc_read_errors_human[gc_content_read][1] += occ_total_err
-        list_gc_read, list_total_err_human = [], []
-        for gc_content_read in sorted(dict_gc_read_errors_human):
-            list_gc_read += [gc_content_read]
-            list_total_err_human += [np.median(dict_gc_read_errors_human[gc_content_read][0])]
-        plt.plot(list_gc_read, list_total_err_human, "--", linewidth=2.5, color="black")
-
-        plt.ylim(0, 10)
-        plt.xlim(25, 70)
-        plt.xticks(np.arange(25, 71, 5))
-        plt.xlabel('GC content of sequenced read (%)')
-        plt.ylabel('Error rates (%)')
-
-        # Legend
-        deletion_label = Line2D([0], [0], color="#004488", linewidth=2, linestyle='-')
-        mismatch_label = Line2D([0], [0], color="#DDAA33", linewidth=2, linestyle='-')
-        insertion_label = Line2D([0], [0], color="#BB5566", linewidth=2, linestyle='-')
-        tot_err_label = Line2D([0], [0], color="k", linewidth=2, linestyle='--')
-
-        L_lines = [deletion_label, mismatch_label, insertion_label, tot_err_label]
-        labels = ["Deletions", "Mismatch", "Insertion", "Total"]
-        plt.legend(L_lines, labels, loc=2)
-
-        plt.savefig(OUTPUT_PLOT + "error_rate_gc_read_human.png")
-        plt.close()
-
-
-        # Write human results in raw file
-        file = open(OUTPUT_RAW + "error_rate_gc_read_human.txt", "w")
-        file.write("---\n")
-
-        file.write("---\n")
-        file.write("GC content of reads and total/mismatch/insertion/deletion error rates for human\n")
-        file.write(f"{list_gc_read}\n")
-        file.write(f"{list_total_err_human}\n{list_mismatches}\n{list_insertions}\n{list_deletions}\n")
-        file.close()

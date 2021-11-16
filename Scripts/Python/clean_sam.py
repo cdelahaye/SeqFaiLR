@@ -8,7 +8,7 @@
  Here we parse sam file and keep the best alignment for each read
  Based on soft clip length, because a read mapping on a given strand will have poor
   alignment on the other one, i.e. high portion of soft clipped read
- + Also removing alignments for which the soft clipped length is higher than one half
+ + Also removing alignments for which the soft clipped length is greater than one half
     of the initial read length
 """
 
@@ -166,13 +166,6 @@ if __name__ == "__main__":
 
     # Dictionary that will store soft clipped length for each read and each strand
     dict_read_softclips = {}
-
-    # Dictionaries and variables that will store information on errors
-    total_aln_length = 0
-    nb_mismatch, nb_insertion, nb_deletion, nb_tot_errors = 0, 0, 0, 0
-    dict_substitution = {"N":0} # initialize with case of N in genome
-    dict_insertion_length, dict_deletion_length = {}, {}
-
 
     # Retrieve information for forward strand
     SAM_FILE_FORWARD = SAM_DIR + SPECIES_NAME + ".sam"

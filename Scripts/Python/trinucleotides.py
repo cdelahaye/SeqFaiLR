@@ -21,19 +21,26 @@ import numpy as np
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 # Parameters for output plots
-PARAMS = {'legend.fontsize': 20,
-          'legend.title_fontsize': 20,
+PARAMS = {'legend.fontsize': 16,
+          'legend.title_fontsize': 16,
           'legend.labelspacing': 0.1,
           'legend.borderpad': 0.3,
           'legend.columnspacing': 1,
           'legend.handletextpad': 0.5,
           'legend.handlelength': 0.8,
-          'figure.figsize': (14, 9),
-          'axes.labelsize': 20,
-          'axes.titlesize': 22,
-          'xtick.labelsize': 20,
-          'ytick.labelsize': 20}
+          'figure.figsize': (10, 8),
+          'axes.labelsize': 16,
+          'axes.titlesize': 16,
+          'xtick.labelsize': 16,
+          'ytick.labelsize': 16}
 plt.rcParams.update(PARAMS)
+
+try:
+    import seaborn as sns; sns.set_theme()
+except ImportError:
+    print("Package seaborn is required, please install it")
+    sys.exit(1)
+
 
 import matplotlib.ticker as ticker
 
@@ -83,10 +90,9 @@ def get_regex_pattern():
     """Returns a regex pattern to find trinucleotides
     """
     pattern = ""
-    for base1 in LIST_BASES:
-        for base2 in LIST_BASES:
-            for base3 in LIST_BASES:
-                #trinucleotide = base1 + base2 + base3 # not taking into account potential gaps in aligned genome…
+    for base1 in L_bases:
+        for base2 in L_bases:
+            for base3 in L_bases:
                 if base1 == base2 == base3: # Omit homopolymers
                     continue
                 trinucleotide = "-*".join([base1, base2, base3, ""]) # allow gaps within pattern in aligned genome
@@ -94,80 +100,79 @@ def get_regex_pattern():
     pattern = pattern[:-1]
     return pattern
 
-def convert_trinucleotide_to_SW_pattern(trinucleotide: str):
-    """Converts a trinucleotide to a pattern made of S and W
+
+def get_groups(filename):
+    """
+    Returns a dictionary of species names (keys), associated with their group name (value)
+    Also a similar dictionary that associated species names (keys) with color of their group (value)
+    """
+    dictionary_group = {}
+    dictionary_color = {}
+    file = open(filename, "r")
+    for line in file:
+        group_name, species_name, color = line.rstrip().split("\t")
+        species_name = species_name.split(".")[0]
+        dictionary_group[species_name] = group_name
+        dictionary_color[group_name] = color
+    file.close()
+
+    return dictionary_group, dictionary_color
+
+
+def convert_trinucleotide_to_pattern(sequence: str):
+    """
+    Converts a trinucleotide to a pattern among: "S-only", "Mostly-S", "W-only", and "Mosly-W"
     S (strong) for bases C or G
     W (weak) for bases A or T
+    S and W are relative to number of hydrogen bounds in DNA (3 for GC ; 2 for AT)
     """
-    sw_pattern = ""
-    for base in trinucleotide:
-        if base in ["C", "G"]:
-            sw_pattern += "S"
-        else:
-            sw_pattern += "W"
-    return sw_pattern
-
-def convert_sw_pattern_to_global_pattern(sw_pattern: str):
-    """Converts a SW pattern (three letters in [W, S] to  "S-only", "Mostly-S", "W-only", and
-    "Mosly-W" global pattern
-    """
-    count_W = sw_pattern.count("W")
-    if count_W == 0:
-        sw_global_pattern = "S only"
-    elif count_W == 1:
-        sw_global_pattern = "mainly S"
-    elif count_W == 2:
-        sw_global_pattern = "mainly W"
+    count_CG = sequence.count("C") + sequence.count("G")
+    if count_CG == 0:
+        pattern = "S only"
+    elif count_CG == 1:
+        pattern = "Mainly S"
+    elif count_CG == 2:
+        pattern = "Mainly W"
     else:
-        sw_global_pattern = "W only"
-    return sw_global_pattern
+        pattern = "W only"
+    return pattern
 
-def initiate_result_dict():
+
+
+def initiate_accuracy_dict():
     """Initialize dictionary that will store every information needed to plot both
-    distribution of trinucleotides depending on category and length
-    and sequencing accuracy
-    For each gc category, each trinucleotide type and each length, store two lists:
+    - distribution of trinucleotides depending on category and length
+    - and sequencing accuracy
+    For each species group, each trinucleotide type and each length, will store two lists:
         - error rate for each species
         - occurrences for each species
     """
+    L_patterns = ["S only", "Mainly S", "Mainly W", "W only"]
     dictionary = {}
-    for base1 in LIST_BASES:
-        for base2 in LIST_BASES:
-            for base3 in LIST_BASES:
-                trinucleotide = base1 + base2 + base3
-                sw_pattern = convert_trinucleotide_to_SW_pattern(trinucleotide)
-                sw_pattern = convert_sw_pattern_to_global_pattern(sw_pattern)
-                for gc_category in ["low GC", "high GC", "human"]:
-                    if gc_category not in dictionary:
-                        dictionary[gc_category] = {}
-                    if sw_pattern not in dictionary[gc_category]:
-                        dictionary[gc_category][sw_pattern] = {}
-                        dictionary[gc_category][sw_pattern]["4+"] = [[], []]
-                        for l in range(2, 4):
-                            dictionary[gc_category][sw_pattern][l] = [[], []]
+    for group_name in L_groups:
+        dictionary[group_name] = {}
+        for pattern in L_patterns:
+            dictionary[group_name][pattern] = {}
+            for length in L_lengths:
+                dictionary[group_name][pattern][length] = [[], []] # error rate, occurrences
     return dictionary
 
 
 def initiate_temp_dict():
     """Initialize TEMPORARY dictionary that will store every information needed to plot both
-    distribution of trinucleotides depending on category and length
-    and sequencing accuracy
+    - distribution of trinucleotides depending on category and length
+    - and sequencing accuracy
     For each trinucleotide type and each length, store a list of 3 integers:
         - number of erroneously sequenced bases
         - number of sequenced bases
         - occurrences of such trinucleotide
     """
+    L_patterns = ["S only", "Mainly S", "Mainly W", "W only"]
     dictionary = {}
-    for base1 in LIST_BASES:
-        for base2 in LIST_BASES:
-            for base3 in LIST_BASES:
-                trinucleotide = base1 + base2 + base3
-                sw_pattern = convert_trinucleotide_to_SW_pattern(trinucleotide)
-                sw_pattern = convert_sw_pattern_to_global_pattern(sw_pattern)
-                dictionary[sw_pattern] = {}
-                dictionary[sw_pattern]["4+"] = [0, 0, 0]
-                for l in range(2, 4):
-                    dictionary[sw_pattern][l] = [0, 0, 0]
+    for pattern in L_patterns:
+        dictionary[pattern] = {}
+        for length in L_lengths:
+            dictionary[pattern][length] = [0, 0, 0]
     return dictionary
 
 def is_homopolymer(word: str) -> bool:
@@ -242,18 +247,17 @@ def try_extend_read_trinucleotide(start_pos, end_pos, sequence):
 def update_results(g: str, r: str):
     """Updates dictionary storing abundance and error rate for each trinucleotide category
     """
-    sw_pattern = convert_trinucleotide_to_SW_pattern(category)
-    sw_pattern = convert_sw_pattern_to_global_pattern(sw_pattern)
+    sw_pattern = convert_trinucleotide_to_pattern(category)
     # Store abundance
-    trinucleotide_occ_acc_temp_dict[sw_pattern][trinucleotide_genome_length][2] += 1
+    dict_tmp_occurrences_accuracy[sw_pattern][trinucleotide_genome_length][2] += 1
     # Store number of erroneous bases
     nb_errors = 0
     for i, base_genome in enumerate(g):
         base_read = r[i]
         if base_read != base_genome:
             nb_errors += 1
-    trinucleotide_occ_acc_temp_dict[sw_pattern][trinucleotide_genome_length][0] += nb_errors
-    trinucleotide_occ_acc_temp_dict[sw_pattern][trinucleotide_genome_length][1] += len(g)
+    dict_tmp_occurrences_accuracy[sw_pattern][trinucleotide_genome_length][0] += nb_errors
+    dict_tmp_occurrences_accuracy[sw_pattern][trinucleotide_genome_length][1] += len(g)
 
 
 def compute_results():
@@ -261,124 +265,209 @@ def compute_results():
     """
 
     dict_color_trinucl = {"S only": '#8bbeda',
-                          "mainly S": '#b2df8a',
-                          "mainly W": '#fdbf6f',
+                          "Mainly S": '#b2df8a',
+                          "Mainly W": '#fdbf6f',
                           "W only": '#ea484b'}
     patch_S_only = mpatches.Patch(color=dict_color_trinucl["S only"], label='S only')
-    patch_main_S = mpatches.Patch(color=dict_color_trinucl["mainly S"], label='mainly S')
-    patch_main_W = mpatches.Patch(color=dict_color_trinucl["mainly W"], label='mainly W')
+    patch_main_S = mpatches.Patch(color=dict_color_trinucl["Mainly S"], label='Mainly S')
+    patch_main_W = mpatches.Patch(color=dict_color_trinucl["Mainly W"], label='Mainly W')
     patch_W_only = mpatches.Patch(color=dict_color_trinucl["W only"], label='W only')
 
-    width = 0.7
-    list_offset = [-0.5, 0.5, 0]
+    nb_groups = len(L_groups)
+    nb_lengths = len(L_lengths)
+    width = 0.5
+    offset_trinucleotide = 0.1 + width # space between 2 trinucleotides types for same species group, same length
+    offset_group = width # space between results of 2 species groups
+    offset_length = 2*width # space between results of 2 different length
 
-    # Abundance of trinucleotides
+    L_start_pos = np.arange(0,
+                            (nb_lengths) * (nb_groups * (4*offset_trinucleotide + offset_group) + offset_length),
+                            nb_groups * (4*offset_trinucleotide + offset_group) + offset_length)
+
+
+
+    # --- Abundance of trinucleotides ---
     fig, ax = plt.subplots()
+    fig.subplots_adjust(bottom=0.2)
+
+    # just creating another line for x axis labels
+    newax = ax.twiny()
+    newax.set_frame_on(True)
+    newax.patch.set_visible(False)
+    newax.xaxis.set_ticks_position('bottom')
+    newax.xaxis.set_label_position('bottom')
+    newax.spines['bottom'].set_position(('outward', 40))
+
     fig.set_dpi(300)
-    for i, gc_category in enumerate(trinucleotide_occurrences_accuracy_dict):
-        offset = list_offset[i]
-        start_pos = np.arange(10, 40, 10) + offset
-        for trinucleotide in ["S only", "mainly S", "mainly W", "W only"]:
+    for i, group_name in enumerate(dict_occurrences_accuracy):
+        for trinucleotide in ["S only", "Mainly S", "Mainly W", "W only"]:
             list_abundance = []
-            for length in [2, 3, "4+"]:
-                list_abundance += [trinucleotide_occurrences_accuracy_dict[gc_category][trinucleotide][length][1]]
-            if gc_category == "human":
-                list_abundance = [np.mean(elt) for elt in list_abundance]
-                plt.plot(start_pos, list_abundance, "x", color="k", markersize=10)
-            else:
-                bplot = ax.boxplot(list_abundance, widths=width,
-                                   positions=start_pos,
-                                   patch_artist=True,
-                                   zorder=-1)
-                colors = [dict_color_trinucl[trinucleotide]]*5
+            for length in L_lengths:
+                # -1 values denote that they were absent in dataset
+                # here, remove -1 to keep only "true" values
+                abundances = dict_occurrences_accuracy[group_name][trinucleotide][length][1]
+                abundances = [elt for elt in abundances if elt!=-1]
+                list_abundance += [abundances]
 
-                for patch, color in zip(bplot['boxes'], colors):
-                    patch.set_facecolor(color)
-                    patch.set_edgecolor("black")
-                    patch.set_color(color)
-                [item.set_color('k') for item in bplot['medians']] # set median line black
+            bplot = ax.boxplot(list_abundance, widths=width,
+                               positions=L_start_pos,
+                               patch_artist=True,
+                               zorder=-1)
+            colors = [dict_color_trinucl[trinucleotide]]*5
 
-            start_pos = start_pos + 3 * width
+            for patch, color in zip(bplot['boxes'], colors):
+                patch.set_facecolor(color)
+                patch.set_edgecolor("black")
+                patch.set_color(color)
+            [item.set_color('k') for item in bplot['medians']] # set median line black
+
+            L_start_pos += offset_trinucleotide
+        L_start_pos += offset_group
+
 
     ax.legend(handles=[patch_S_only, patch_main_S, patch_main_W, patch_W_only],
               title="Trinucleotides types:", ncol=8)
 
-    plt.yscale("log")
+    #plt.yscale("log")
     plt.xlabel("Number of repetitions")
-    plt.ylabel("Occurrences ratio of sequenced genomic trinucleotides (%)")
-    xtick_positions = [12, 22, 32]
-    ax.set_xticks(xtick_positions)
-    ax.set_xticklabels([2, 3, "4+"])
+    ax.set_ylabel("Occurrences ratio of sequenced genomic trinucleotides (%)")
 
-    # Set y ticks label as "normal" notation, not scientific one
-    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda y,pos: ('{{:.{:1d}f}}'.format(int(np.maximum(-np.log10(y),0)))).format(y)))
+    # First x-axis labels = species groups
+    L_xlabels1_pos = []
+    p = 0
+    for l in L_lengths:
+        for g in L_groups:
+            L_xlabels1_pos += [p + 1.5 * offset_trinucleotide] # 1.5 to be centered between the 4 categories (=> 3 gaps / 2)
+            p += 4 * offset_trinucleotide + offset_group
+        p += offset_length
+    L_xlabels1_labels = L_groups * nb_lengths
+    ax.set_xticks(L_xlabels1_pos)
+    ax.set_xticklabels(L_xlabels1_labels)
 
-    plt.xlim(8, 38)
+
+    # Second x-axis labels = trinucleotide lengths
+    newax.set_xlim(ax.get_xlim()) # set same limits than first x-axis
+    L_xlabels2_pos = [np.mean([L_xlabels1_pos[i:i+nb_groups]]) for i in range(0, len(L_xlabels1_pos), nb_groups)]
+    L_xlabels2_labels = L_lengths
+    newax.set_xticks(L_xlabels2_pos)
+    newax.set_xticklabels(L_xlabels2_labels)
+
     plt.savefig(OUTPUT_PLOT + "trinucleotide_occurrences.png")
     plt.close()
 
 
-    # Sequencing accuracy of trinucleotides
+    # --- Sequencing accuracy of trinucleotides ---
+    # exactly same plot than previously, taking first values in dict instead of second ones
+
+    L_start_pos = np.arange(0,
+                            (nb_lengths) * (nb_groups * (4*offset_trinucleotide + offset_group) + offset_length),
+                            nb_groups * (4*offset_trinucleotide + offset_group) + offset_length)
+
+
     fig, ax = plt.subplots()
-    fig.set_dpi(300)
-    for i, gc_category in enumerate(trinucleotide_occurrences_accuracy_dict):
-        offset = list_offset[i]
-        start_pos = np.arange(10, 40, 10) + offset
-        for trinucleotide in ["S only", "mainly S", "mainly W", "W only"]:
+    fig.subplots_adjust(bottom=0.2)
+
+    # just creating another line for x axis labels
+    newax = ax.twiny()
+    newax.set_frame_on(True)
+    newax.patch.set_visible(False)
+    newax.xaxis.set_ticks_position('bottom')
+    newax.xaxis.set_label_position('bottom')
+    newax.spines['bottom'].set_position(('outward', 40))
+
+    #fig.set_dpi(300)
+    for i, group_name in enumerate(dict_occurrences_accuracy):
+        for trinucleotide in ["S only", "Mainly S", "Mainly W", "W only"]:
             list_accuracy = []
-            for length in [2, 3, "4+"]:
-                list_accuracy += [trinucleotide_occurrences_accuracy_dict[gc_category][trinucleotide][length][0]]
-            if gc_category == "human":
-                list_accuracy = [np.mean(elt) for elt in list_accuracy]
-                plt.plot(start_pos, list_accuracy, "x", color="k", markersize=10)
-            else:
-                bplot = ax.boxplot(list_accuracy, widths=width,
-                               positions=start_pos,
+            for length in L_lengths:
+                # -1 values denote that they were absent in dataset
+                # here, remove -1 to keep only "true" values
+                accuracy = dict_occurrences_accuracy[group_name][trinucleotide][length][0]
+                accuracy = [elt for elt in accuracy if elt!=-1]
+                list_accuracy += [accuracy]
+
+            bplot = ax.boxplot(list_accuracy, widths=width,
+                               positions=L_start_pos,
                                patch_artist=True,
                                zorder=-1)
-                colors = [dict_color_trinucl[trinucleotide]]*5
-                for patch, color in zip(bplot['boxes'], colors):
-                    patch.set_facecolor(color)
-                    patch.set_edgecolor("black")
-                    patch.set_color(color)
-                [item.set_color('k') for item in bplot['medians']] # set median line black
+            colors = [dict_color_trinucl[trinucleotide]]*5
 
-            start_pos = start_pos + 3 * width
+            for patch, color in zip(bplot['boxes'], colors):
+                patch.set_facecolor(color)
+                patch.set_edgecolor("black")
+                patch.set_color(color)
+            [item.set_color('k') for item in bplot['medians']] # set median line black
+
+            L_start_pos += offset_trinucleotide
+        L_start_pos += offset_group
 
     ax.legend(handles=[patch_S_only, patch_main_S, patch_main_W, patch_W_only],
               title="Trinucleotides types:", ncol=8)
 
+
+    # First x-axis labels = species groups
+    L_xlabels1_pos = []
+    p = 0
+    for l in L_lengths:
+        for g in L_groups:
+            L_xlabels1_pos += [p + 1.5 * offset_trinucleotide] # 1.5 to be centered between the 4 categories (=> 3 gaps / 2)
+            p += 4 * offset_trinucleotide + offset_group
+        p += offset_length
+    L_xlabels1_labels = L_groups * nb_lengths
+    ax.set_xticks(L_xlabels1_pos)
+    ax.set_xticklabels(L_xlabels1_labels)
+
+
+    # Second x-axis labels = trinucleotide lengths
+    newax.set_xlim(ax.get_xlim()) # set same limits than first x-axis
+    L_xlabels2_pos = [np.mean([L_xlabels1_pos[i:i+nb_groups]]) for i in range(0, len(L_xlabels1_pos), nb_groups)]
+    L_xlabels2_labels = L_lengths
+    newax.set_xticks(L_xlabels2_pos)
+    newax.set_xticklabels(L_xlabels2_labels)
+
     plt.xlabel("Number of repetitions")
-    plt.ylabel("Correctly sequenced trinucleotides (%)")
-    xtick_positions = [12, 22, 32]
-    ax.set_xticks(xtick_positions)
-    ax.set_xticklabels([2, 3, "4+"])
-    plt.xlim(8, 38)
+    ax.set_ylabel("Correctly sequenced trinucleotides (%)")
     plt.savefig(OUTPUT_PLOT + "trinucleotide_accuracy.png")
     plt.close()
 
 
-    # Saving results in file
+    # --- Saving results in file ---
     dict_trinucl_occ = {}
     dict_trinucl_accuracy = {}
-    for gc_category in trinucleotide_occurrences_accuracy_dict:
-        dict_trinucl_occ[gc_category] = {}
-        dict_trinucl_accuracy[gc_category] = {}
-        for trinucleotide_category in trinucleotide_occurrences_accuracy_dict[gc_category]:
-            dict_trinucl_occ[gc_category][trinucleotide_category] = {}
-            dict_trinucl_accuracy[gc_category][trinucleotide_category] = {}
-            for length in trinucleotide_occurrences_accuracy_dict[gc_category][trinucleotide_category]:
-                list_accuracy, list_occ = trinucleotide_occurrences_accuracy_dict[gc_category][trinucleotide_category][length]
-                dict_trinucl_occ[gc_category][trinucleotide_category][length] = list_occ
-                dict_trinucl_accuracy[gc_category][trinucleotide_category][length] = list_accuracy
+    for group_name in dict_occurrences_accuracy:
+        dict_trinucl_occ[group_name] = {}
+        dict_trinucl_accuracy[group_name] = {}
+        for trinucleotide_category in dict_occurrences_accuracy[group_name]:
+            dict_trinucl_occ[group_name][trinucleotide_category] = {}
+            dict_trinucl_accuracy[group_name][trinucleotide_category] = {}
+            for length in dict_occurrences_accuracy[group_name][trinucleotide_category]:
+                list_accuracy, list_occ = dict_occurrences_accuracy[group_name][trinucleotide_category][length]
+                dict_trinucl_occ[group_name][trinucleotide_category][length] = list_occ
+                dict_trinucl_accuracy[group_name][trinucleotide_category][length] = list_accuracy
 
 
     output = open(OUTPUT_RAW + "trinucleotides_occurrence_accuracy.txt", "w")
-    output.write("Occurrences\n")
-    output.write(f"{dict_trinucl_occ}\n\n")
-    output.write("Accuracy\n")
-    output.write(f"{dict_trinucl_accuracy}\n")
+    write_dictionary(dict_trinucl_occ, "Occurences", output)
+    write_dictionary(dict_trinucl_accuracy, "\nAccuracy", output)
     output.close()
+
+
+def write_dictionary(dictionary, text, file):
+    """
+    Write dictionaries to output file
+    """
+    file.write(text + "\n")
+    for group_name in dictionary:
+        file.write(group_name + "\n")
+        for category in dictionary[group_name]:
+            file.write(category + "\n")
+            for length in dictionary[group_name][category]:
+                results = [elt if elt!=-1 else "NaN" for elt in dictionary[group_name][category][length]]
+                results = "\t".join(map(str, results))
+                file.write("\t" + f"{length} {results}" +  "\n")
+                #file.write("\t" + length, dictionary[group_name][category][length], "\n")
+        file.write("\n")
+
 
 
 
@@ -389,64 +478,56 @@ if __name__ == "__main__":
 
 
     ## Parses arguments
-    if len(sys.argv) != 5:
-        print(f"ERROR: Wrong number of arguments: 4 expected but {len(sys.argv)-1} given.")
+    NUMBER_EXPECTED_ARGUMENTS = 9
+    if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
+        print(f"ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but {len(sys.argv)-1} given.")
         sys.exit(2)
-    ALN_EXPL_DIRNAME = sys.argv[1]
-    OUTPUT_RAW = sys.argv[2]
-    OUTPUT_PLOT = sys.argv[3]
-    FILENAME_SPECIES_GC = sys.argv[4]
+    ALN_EXPL_DIRNAME, OUTPUT_RAW, OUTPUT_PLOT, FILE_SPECIES_GC, FILE_SPECIES_GROUP, MIN_LENGTH, MAX_LENGTH, THRESHOLD_OCCURENCES, NB_MAX_ALN = sys.argv[1:]
 
-    if ALN_EXPL_DIRNAME[-1] != "/":
-        ALN_EXPL_DIRNAME += "/"
-    if OUTPUT_PLOT[-1] != "/":
-        OUTPUT_PLOT += "/"
-    if OUTPUT_RAW[-1] != "/":
-        OUTPUT_RAW += "/"
+    MIN_LENGTH = int(MIN_LENGTH)
+    MAX_LENGTH = int(MAX_LENGTH)
+    THRESHOLD_OCCURENCES = int(THRESHOLD_OCCURENCES) # Minimal number of occurrences to take into account the result
+    NB_MAX_ALN = int(NB_MAX_ALN) # Maximal number of alignment processed, to speed up
 
+    if NB_MAX_ALN == -1:
+        NB_MAX_ALN = float("inf")
 
-    # Get GC category for each species
-    dict_species_gc_category = {}
-    file = open(FILENAME_SPECIES_GC, "r")
-    for line in file:
-        species_name, _, gc = line.rstrip().split(" ; ")
-        species_name = species_name.replace(" ", "_")
-        gc = float(gc)
-        if "Human" in species_name:
-            category = "human"
-        elif gc < 50:
-            category = "low GC"
-        else:
-            category = "high GC"
-        dict_species_gc_category[species_name] = category
-    file.close()
+    # --- Parameters ---
 
     # Some global variables
-    LIST_BASES = ["A", "C", "G", "T"]
-    PATTERN = get_regex_pattern() # regex pattern for searching for trinucleotides
-    COLOR_LOW_GC = "#4477AA"
-    COLOR_HIGH_GC = "#EE6677"
-    COLOR_HUMAN = "#CCBB44"
+    L_bases = ["A", "C", "G", "T"]
+    pattern = get_regex_pattern() # regex pattern for searching for trinucleotides
+
+    # Trinucleotide "length" defined as their number of bases
+    #   for example ACGACG is of length 6 (thus can only be multiples of 3)
+    L_lengths = list(np.arange(MIN_LENGTH, MAX_LENGTH, 3)) + [f"{MAX_LENGTH}+"]
+
+    # Get groups of species
+    dict_species_group, dict_species_group_color = get_groups(FILE_SPECIES_GROUP)
+    L_groups = sorted(set(dict_species_group.values()))
 
 
-    trinucleotide_occurrences_accuracy_dict = initiate_result_dict() # store results
+    # Initiate dictionary to store results
+    dict_occurrences_accuracy = initiate_accuracy_dict()
 
-    # Analyse alignment file
-    species_counter = 0
+    # --- Analyse alignment files ---
     for aln_filename in os.listdir(ALN_EXPL_DIRNAME):
-        species_counter += 1
 
         aln_path = ALN_EXPL_DIRNAME + aln_filename
         NB_TOT_ALN = get_total_number_of_lines(aln_path) / 3
         STARTING_TIME = time.time()
 
-        print(aln_filename)
-
         species_name = aln_filename.split(".txt")[0]
-        gc_category = dict_species_gc_category[species_name]
+        print("  ", species_name)
+        group_name = dict_species_group[species_name]
         aln_file = open(aln_path, "r")
 
-        trinucleotide_occ_acc_temp_dict = initiate_temp_dict() # Temporary result for each species
+        # temporary dictionary storing result for current species
+        #    dict[SW-pattern][length] = [nb_err, nb_seq, nb_occ] ;  with :
+        #       - nb_err = number of erroneously sequenced bases
+        #       - nb_seq = number of sequenced bases
+        #       - nb_occ = occurrences of such trinucleotide
+        dict_tmp_occurrences_accuracy = initiate_temp_dict()
 
         # Get alignment from aln_file
         nb_aln_done = 0
@@ -467,13 +548,13 @@ if __name__ == "__main__":
                 progressing = tmp_progressing
                 display_progressing_bar(progressing, time.time())
 
-            #if nb_aln_done >= 100000: # bound number of alignments analysed
-            #    break
+            if nb_aln_done >= NB_MAX_ALN:
+                break
 
 
-            # Compute sequencing errors associated with genomic trinucleotides
+            # --- Compute sequencing errors associated with genomic trinucleotides ---
             start_all, end_all = -1, -1
-            for res in re.finditer(PATTERN, genome_aln):
+            for res in re.finditer(pattern, genome_aln):
                 start, end = res.span()
                 if start in range(start_all, end_all): # this trinucleotide has already been analysed
                     continue
@@ -488,20 +569,12 @@ if __name__ == "__main__":
                 trinucleotide_genome = genome_aln[start_genome: end_genome]
 
 
-                # length here is the number of repetitions
-                trinucleotide_genome_length = len(trinucleotide_genome.replace("-", "")) / 3
-                if trinucleotide_genome_length >= 4:
-                    trinucleotide_genome_length = "4+"
+                trinucleotide_genome_length = len(trinucleotide_genome.replace("-", ""))
+                if trinucleotide_genome_length >= MAX_LENGTH:
+                    trinucleotide_genome_length = f"{MAX_LENGTH}+"
                 start_read, end_read = try_extend_read_trinucleotide(start, end, read_aln)
                 start_all = min(start_genome, start_read)
                 end_all = max(end_genome, end_read)
-
-                if start != start_genome or end != end_genome:
-                    print(genome_aln[start: end])
-                    print(category)
-                    print(trinucleotide_genome)
-                    input("?")
-
 
                 # Update dictionary storing results
                 update_results(genome_aln[start_all: end_all],
@@ -509,18 +582,22 @@ if __name__ == "__main__":
 
 
         # Merge temporary result to final dictionary storing results
-        threshold = 100
-        for sw_pattern in trinucleotide_occ_acc_temp_dict:
-            for length in trinucleotide_occ_acc_temp_dict[sw_pattern]:
-                nb_err, nb_tot, nb_occ = trinucleotide_occ_acc_temp_dict[sw_pattern][length]
-                if nb_occ > threshold: #!= 0:
+        for sw_pattern in dict_tmp_occurrences_accuracy:
+            for length in dict_tmp_occurrences_accuracy[sw_pattern]:
+                nb_err, nb_tot, nb_occ = dict_tmp_occurrences_accuracy[sw_pattern][length]
+                if nb_occ > THRESHOLD_OCCURENCES:
                     ratio_occ = nb_occ / total_nb_sequenced_bases * 100
                     accuracy_rate = round(100 - (nb_err / nb_tot * 100), 2)
-                    trinucleotide_occurrences_accuracy_dict[gc_category][sw_pattern][length][0] += [accuracy_rate]
-                    trinucleotide_occurrences_accuracy_dict[gc_category][sw_pattern][length][1] += [ratio_occ]
+                    dict_occurrences_accuracy[group_name][sw_pattern][length][0] += [accuracy_rate]
+                    dict_occurrences_accuracy[group_name][sw_pattern][length][1] += [ratio_occ]
+                else:
+                    dict_occurrences_accuracy[group_name][sw_pattern][length][0] += [-1]
+                    dict_occurrences_accuracy[group_name][sw_pattern][length][1] += [-1]
+
 
 
         aln_file.close()
         sys.stdout.write("\n")
+
 
         compute_results()

@@ -4,15 +4,15 @@ echo ""
 echo "====="
 echo "Running $0"
 
-# From explicit alignment files and reference genome files, computes a graph of error rates (detailed, and global) depending on relative position in the reference genome.
+# From explicit alignment files and reference genome files, computes a graph of error rates (detailed, and global)
+#   depending on relative position in the reference genome.
 
-sam_dir="./Data/Mapping" # input data: directory containing explicit alignment
-ref_gen_dir="./Data/Reference_genomes" # input data: directory containing reference genomes
-output_graph_dir="./Output/Error_rates_along_genome" # output directory: graphics
-output_raw_dir="./Analysis/Error_rates_along_genome" # output directory: raw results
-species_color_file="./Data/species_gc_color.txt" # input data: information about GC content of species and their color for graphs
+sam_dir="./Data/Mapping/" # input data: directory containing explicit alignment
+ref_gen_dir="./Data/Reference_genomes/" # input data: directory containing reference genomes
+output_graph_dir="./Output/Error_rates_along_genome/" # output directory: graphics
+file_color_gc_species="./Data/species_color_GC.txt" # file containing GC content of each species
+file_species_groups="./Data/species_groups.txt" # file containing species groups
 
-mkdir -p $output_raw_dir
 mkdir -p $output_graph_dir
 
 
@@ -36,7 +36,7 @@ fi
 
 
 # Runs the script
-python3 -u ./Scripts/Python/error_rates_along_genome.py $sam_dir $ref_gen_dir $output_raw_dir $output_graph_dir $species_color_file
+python3 -u ./Scripts/Python/error_rates_along_genome.py $sam_dir $ref_gen_dir $output_graph_dir $file_color_gc_species $file_species_groups
 
 echo ""
 echo "Done."
