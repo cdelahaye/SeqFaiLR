@@ -30,11 +30,13 @@ if __name__ == "__main__":
 
     dict_genome_species = {}
 
+    # Get all reference genomes' names
     for ref_genome in os.listdir(REF_GENOME_DIR):
         ref_genome = ref_genome.replace(".fasta", "").replace("_reverse", "")
         if ref_genome not in dict_genome_species:
             dict_genome_species[ref_genome] = []
 
+    # Browse each species fasta/q file and verify it has an associated reference genome
     for path in os.listdir(RAW_READS_DIR):
         if os.path.isdir(RAW_READS_DIR + "/" + path):
             for filename in os.listdir(RAW_READS_DIR + "/" + path):
@@ -58,6 +60,7 @@ if __name__ == "__main__":
                       "matches with XXX.fastq species name")
                 sys.exit(1)
 
+    # Checks that each genome is associated to a fasta/q file
     for ref_genome in dict_genome_species:
         if dict_genome_species[ref_genome] == []:
             print(f"ERROR: no species associated to reference genome {ref_genome}.",

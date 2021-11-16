@@ -14,6 +14,7 @@ raw_read_dir="./Data/Raw_reads"
 output_groups="./Data/species_groups.txt" # output file (groupID ; species) space separated
 output_colors="./Data/species_color_GC.txt" # output file (species name ; color ; GC content of genome in %)
 
+mkdir -p ./logs # create directory for log files
 
 # --- --- ---
 # Install minimap2 for alignments
@@ -37,6 +38,26 @@ else
   exit 1
 fi
 echo ""
+
+# --- --- ---
+# Rename reference genome filenames and raw reads filenames
+# Replace spaces with underscores
+# Replace .fa and .fq extensions with .fasta and .fastq
+# (To ease file parsing in analysis)
+
+# Reference genome files:
+#   replace spaces with underscores
+for file in $ref_gen_dir/*\ * ; do mv "$file" "${file//\ /_}" ; done
+#   replace .fa extension with .fasta
+for file in $ref_gen_dir/*.fa ; do mv "$file" "${file//.fa/.fasta}" ; done
+
+# Raw reads:
+#   replace spaces with underscores
+for file in $raw_read_dir/*\ * ; do mv "$file" "${file//\ /_}" ; done
+#   replace .fa extension with .fasta
+for file in $ref_gen_dir/*.fa ; do mv "$file" "${file//.fa/.fasta}" ; done
+#   replace .fq extension with .fastq
+for file in $ref_gen_dir/*.fq ; do mv "$file" "${file//.fq/.fastq}" ; done
 
 
 # --- --- ---

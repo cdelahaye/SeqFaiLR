@@ -1,5 +1,45 @@
 #!/bin/bash
 
+# === === === PARAMETERS === === ===
+#
+# You can modify the following values to adapt threshold used in analyses.
+# Details of what these variables refer to, are available on github documentation
+
+# - - - Error rate depending on quality scores - - -
+err_qual_window_length=100
+err_qual_max_aln_nb=200
+err_qual_min_occ_read=10
+err_qual_min_occ_window=1000
+
+# - - - Quality scores along raw reads - - -
+qual_read_end_length=100
+
+# - - - Relative coverage depending on GC content of reads - - -
+cov_gc_window_size=100
+cov_gc_max_bases=100000
+
+# - - - Error rate depending on GC content of reads - - -
+err_gc_nb_max_aln=500
+err_gc_min_occ_to_plot=100
+
+# - - - Homopolymers - - -
+homopolymer_min_length=2
+homopolymer_max_length=12
+homopolymer_nb_max_aln=200
+
+# - - - Heteropolymers - - -
+heteropolymer_min_length=4
+heteropolymer_max_length=14
+
+# - - - Trinucleotides - - -
+trinucleotides_min_length=6
+trinucleotides_max_length=12
+trinucleotides_threshold_occ=100
+trinucleotides_nb_max_aln=100000
+
+# === === === END OF PARAMETERS ZONE === === ===
+
+
 # Parse command-line options
 
 function show_usage (){
@@ -104,43 +144,43 @@ case $mode in
      ./Scripts/get_depthSeq_readMeanLen.sh
      ;;
    quality )
-     ./Scripts/error_rate_quality_score.sh
-     ./Scripts/quality_along_raw_reads.sh
+     ./Scripts/error_rate_quality_score.sh $err_qual_window_length $err_qual_max_aln_nb $err_qual_min_occ_read $err_qual_min_occ_window
+     ./Scripts/quality_along_raw_reads.sh $qual_read_end_length
      ;;
    gc )
-     ./Scripts/coverage_gc_content.sh
-     ./Scripts/error_rates_gc_read.sh
+     ./Scripts/coverage_gc_content.sh $cov_gc_window_size $cov_gc_max_bases
+     ./Scripts/error_rates_gc_read.sh $err_gc_nb_max_aln $err_gc_min_occ_to_plot
+
      ;;
    low_complexity )
-     ./Scripts/homopolymer_errors.sh
+     ./Scripts/homopolymer_errors.sh $homopolymer_min_length $homopolymer_max_length $homopolymer_nb_max_aln
      ./Scripts/heteropolymer_errors.sh
      ./Scripts/trinucleotides.sh
      ;;
    homopolymers )
-     ./Scripts/homopolymer_errors.sh
+     ./Scripts/homopolymer_errors.sh $homopolymer_min_length $homopolymer_max_length $homopolymer_nb_max_aln
      ;;
    heteropolymers )
-     ./Scripts/heteropolymer_errors.sh
+     ./Scripts/heteropolymer_errors.sh $heteropolymer_min_length $heteropolymer_max_length
      ;;
    trinucleotides )
-     ./Scripts/trinucleotides.sh
+     ./Scripts/trinucleotides.sh $trinucleotides_min_length $trinucleotides_max_length $trinucleotides_threshold_occ $trinucleotides_nb_max_aln
+
      ;;
    all )
      ./Scripts/initialize.sh
-     ./Scripts/species_color_GC.sh
-     ./Scripts/reverse_complement_references.sh
      ./Scripts/map.sh
      ./Scripts/alignment_explicit.sh
      ./Scripts/substitution_errors.sh
      ./Scripts/error_rates_along_genome.sh
      ./Scripts/get_depthSeq_readMeanLen.sh
-     ./Scripts/error_rate_quality_score.sh
-     ./Scripts/quality_along_raw_reads.sh
-     ./Scripts/coverage_gc_content.sh
-     ./Scripts/error_rates_gc_read.sh
-     ./Scripts/homopolymer_errors.sh
-     ./Scripts/heteropolymer_errors.sh
-     ./Scripts/trinucleotides.sh
+     ./Scripts/error_rate_quality_score.sh $err_qual_window_length $err_qual_max_aln_nb $err_qual_min_occ_read $err_qual_min_occ_window
+     ./Scripts/quality_along_raw_reads.sh $cov_gc_window_size $cov_gc_max_bases
+     ./Scripts/coverage_gc_content.sh $err_gc_nb_max_aln $err_gc_min_occ_to_plot
+     ./Scripts/error_rates_gc_read.sh $err_gc_nb_max_aln $err_gc_min_occ_to_plot
+     ./Scripts/homopolymer_errors.sh $homopolymer_min_length $homopolymer_max_length $homopolymer_nb_max_aln
+     ./Scripts/heteropolymer_errors.sh $heteropolymer_min_length $heteropolymer_max_length
+     ./Scripts/trinucleotides.sh $trinucleotides_min_length $trinucleotides_max_length $trinucleotides_threshold_occ $trinucleotides_nb_max_aln
      ;;
    * )
      echo "Not recognized"

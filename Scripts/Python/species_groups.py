@@ -43,8 +43,8 @@ if __name__ == "__main__":
 
     # Ask if want to group all or group nothing
     print("Do you want to group species on plots?")
-    print("  - If you want to group all species together, type ALL")
-    print("  - If you do not want to group species, type NO")
+    print("  - If you want to group all species together (i.e. merge them all), type ALL")
+    print("  - If you do not want to group species (i.e. keep species separated), type NO")
     print("  - If you want to create multiple groups, type anything else!")
     do_group_all_none = input("").upper()
 
@@ -61,15 +61,16 @@ if __name__ == "__main__":
 
 
     for filename in os.listdir(RAW_READ_DIR):
+        species_name = filename.split(".")[0]
         if do_group_all_none == "ALL":
-            dict_group_species[group_name] += [filename]
+            dict_group_species[group_name] += [species_name]
         elif do_group_all_none == "NO":
-            dict_group_species[filename] = [filename]
+            dict_group_species[species_name] = [species_name]
         else:
-            group_name = input(f"  Which group for {filename}?\t")
+            group_name = input(f"  Which group for {species_name}?\t")
             if group_name not in dict_group_species:
                 dict_group_species[group_name] = []
-            dict_group_species[group_name] += [filename]
+            dict_group_species[group_name] += [species_name]
 
     nb_color = len(dict_group_species)
     list_colors = sns.diverging_palette(240, 10, n=nb_color, as_cmap=False)

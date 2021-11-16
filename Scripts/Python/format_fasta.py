@@ -11,7 +11,6 @@ And also convert all characters to upper case.
 # Packages
 
 import sys
-import os
 
 # --------------------------------------------------------------------------------------------------
 # Main

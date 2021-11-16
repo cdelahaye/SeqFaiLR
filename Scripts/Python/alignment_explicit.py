@@ -351,7 +351,7 @@ def display_progressing_bar(prct: int, current_time: float):
     estimated_remaining_time = str(datetime.timedelta(seconds=round(estimated_remaining_time)))
 
     # Write to stdout
-    sys.stdout.write(f"\r{progressing_bar} ({prct}% ; {estimated_remaining_time})")
+    sys.stdout.write(f"\r  - {SPECIES_NAME} {progressing_bar} ({prct}% ; {estimated_remaining_time})")
     sys.stdout.flush()
 
 
@@ -370,6 +370,7 @@ if __name__ == "__main__":
     ERRORS_STATS_OUTPUT_FILENAME = sys.argv[3]
     NB_ALN_TO_COMPUTE = int(sys.argv[4])
     SPECIES_NAME = SAM_FILENAME.split("/")[-1].split(".sam")[0]
+
 
     # Used to further display progressing of the script
     STARTING_TIME = time.time()
@@ -412,10 +413,8 @@ if __name__ == "__main__":
         flag = line_list[1]
         if flag in ["4", "256", "2048"]:
             continue
-
         # check if this is not a secondary alignment
         read = line_list[9]
-
         if read == "0" or read == "*" or id_read == line_list[0]:
             continue
 
@@ -431,10 +430,8 @@ if __name__ == "__main__":
         md_str = md_full_str.split("MD:Z:")[-1]
 
 
-
         # parse CIGAR, and update read and mapping position
         cigar, read, position_in_genome, soft_clips = parse_cigar(cigar_str, read, position_in_genome)
-
 
 
         # computes explicit alignment from read, CIGAR and MD
@@ -502,4 +499,5 @@ if __name__ == "__main__":
 
     total_elapsed_time = time.time() - STARTING_TIME
     total_elapsed_time = str(datetime.timedelta(seconds=round(total_elapsed_time)))
-    sys.stdout.write(f"\nDone (elapsed time: {total_elapsed_time}).\n")
+    sys.stdout.write(f"  Done (elapsed time: {total_elapsed_time}).\n")
+

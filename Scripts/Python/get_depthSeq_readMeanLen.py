@@ -5,7 +5,7 @@
 """
 Computes the sequencing depth, GC content of reference genome, and mean read length
   for all sequenced datasets.
-Output results as a table, both in raw file, and in a LaTeX style.
+Output results as a table in raw file.
 """
 
 # --------------------------------------------------------------------------------------------------
@@ -25,43 +25,32 @@ def get_reference_genome_length_gc(filename) -> int:
     nb_g_c_bases = 0
     with open(filename, "r") as ref_genome:
         for line in ref_genome:
-            if line[0] != ">": # skip
+            if line[0] != ">": # header -> skip
                 line = line.rstrip().upper().replace("N", "")
                 genome_length += len(line)
                 nb_g_c_bases += line.count("C") + line.count("G")
     gc_content = round(nb_g_c_bases / genome_length * 100, 2)
     return genome_length, gc_content
 
-def get_short_name(long_species_name: str):
-    """ Returns a short version of species name
-         and replace underscores with spaces
-    For example: Staphylococcus_thermophilus_CNRZ1066 -> S. thermophilus CNRZ1066
-    """
-    list_long_species_name = long_species_name.split("_")
-    short_species_name = list_long_species_name[0][0] + ". "
-    short_species_name += " ".join(list_long_species_name[1:])
-    return short_species_name
 
+
+def get_short_name(long_name):
+    L_name = long_name.replace("_", " ").split(" ")
+    L_name[0] = L_name[0][0] + "."
+    short_name = " ".join(L_name)
+    return short_name
 # --------------------------------------------------------------------------------------------------
 # Main
 
 if __name__ == "__main__":
-    print("Running.")
 
-    ## Parses arguments
-    if len(sys.argv) != 4:
-        print(f"ERROR: Wrong number of arguments: 3 expected but {len(sys.argv)-1} given.")
+    # Parses arguments
+    NUMBER_EXPECTED_ARGUMENTS = 3
+    if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
+        print(f"ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but {len(sys.argv)-1} given.")
         sys.exit(2)
-    ALN_DIRNAME = sys.argv[1]
-    REF_GEN_DIRNAME = sys.argv[2]
-    OUTPUT_RAW = sys.argv[3]
+    ALN_DIRNAME, REF_GEN_DIRNAME, OUTPUT_RAW = sys.argv[1:]
 
-    if ALN_DIRNAME[-1] != "/":
-        ALN_DIRNAME += "/"
-    if REF_GEN_DIRNAME[-1] != "/":
-        REF_GEN_DIRNAME += "/"
-    if OUTPUT_RAW[-1] != "/":
-        OUTPUT_RAW += "/"
 
     dict_species_stats = {}
 
@@ -108,7 +97,6 @@ if __name__ == "__main__":
 
     file = open(OUTPUT_RAW + "sequencing_depth_mean_read_length.txt", "w")
 
-    # Tabulated format
     header_list = ["Species", "Size (non-N bases)", "GC %",
                    "Mean read length (bp)", "Sequencing depth"]
     file.write("\t".join(header_list) + "\n")
@@ -116,16 +104,6 @@ if __name__ == "__main__":
         file.write(species_name + "\t")
         file.write("\t".join(list(map(str, dict_species_stats[species_name]))) + "\n")
 
-    # LaTeX format
-    file.write("\n")
-    file.write("\\begin{table}[!ht]\n\centering\n\\begin{tabular}{lcccc}\n")
-    header_list = ["Species", "Size (non-N bases)", "GC \%",
-                   "Mean read length (bp)", "Sequencing depth"]
-    file.write(" & ".join(header_list) + " \\\\ \n")
-    for species_name in sorted(dict_species_stats):
-        file.write("\\textit{" + species_name + "} & ")
-        file.write(" & ".join(list(map(str, dict_species_stats[species_name]))) + " \\\\ \n")
-    file.write("\end{tabular} \n\end{table}")
 
 
     file.close()
