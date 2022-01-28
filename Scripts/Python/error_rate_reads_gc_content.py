@@ -237,7 +237,7 @@ def plot_results(dictionary, output_filename, dict_colors, L_order, category):
             ax.plot(L_gc, L_error_rate, color=color, label=entity)
 
         # Labels and legend
-        ax.set(xlabel='Relative position in reference genome (%)',
+        ax.set(xlabel='Average GC content of read (%)',
                ylabel=f"{error_type} error rate (%)")
         #   reorder legend labels
         handles, labels = ax.get_legend_handles_labels()
