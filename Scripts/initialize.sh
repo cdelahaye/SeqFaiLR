@@ -47,18 +47,27 @@ echo ""
 
 # Reference genome files:
 #   replace spaces with underscores
-for file in $ref_gen_dir/*\ * ; do mv "$file" "${file//\ /_}" ; done
+if [[ -f "$ref_gen_dir/*\ *" ]]; then
+  for file in $ref_gen_dir/*\ * ; do mv "$file" "${file//\ /_}" ; done
+fi
 #   replace .fa extension with .fasta
-for file in $ref_gen_dir/*.fa ; do mv "$file" "${file//.fa/.fasta}" ; done
+if [[ -f "$ref_gen_dir/*.fa" ]]; then
+  for file in $ref_gen_dir/*.fa ; do mv "$file" "${file//.fa/.fasta}" ; done
+fi
 
 # Raw reads:
 #   replace spaces with underscores
-for file in $raw_read_dir/*\ * ; do mv "$file" "${file//\ /_}" ; done
+if [[ -f "$raw_read_dir/*\ *" ]]; then
+  for file in $raw_read_dir/*\ * ; do mv "$file" "${file//\ /_}" ; done
+fi
 #   replace .fa extension with .fasta
-for file in $ref_gen_dir/*.fa ; do mv "$file" "${file//.fa/.fasta}" ; done
+if [[ -f "$ref_gen_dir/*.fa" ]]; then
+  for file in $ref_gen_dir/*.fa ; do mv "$file" "${file//.fa/.fasta}" ; done
+fi
 #   replace .fq extension with .fastq
-for file in $ref_gen_dir/*.fq ; do mv "$file" "${file//.fq/.fastq}" ; done
-
+if [[ -f "$ref_gen_dir/*.fq" ]]; then
+  for file in $ref_gen_dir/*.fq ; do mv "$file" "${file//.fq/.fastq}" ; done
+fi
 
 # --- --- ---
 # For more readability, or to ease comparison, species data can be grouped, instead
