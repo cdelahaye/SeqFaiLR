@@ -76,7 +76,7 @@ echo "Merging of forward and reverse alignment file for each species"
 
 # checks if some *reverse files exist: if true, then they have to be merged
 if ls $aln_expl_dir/*reverse.txt > /dev/null 2>&1; then
-  for aln_file_reverse in $aln_expl_dir/*reverse.txt
+  for aln_file_reverse in ${aln_expl_dir}*reverse.txt
   do
     echo "  - $aln_file_reverse"
     basename_aln_file=$(basename $aln_file_reverse)
@@ -98,7 +98,7 @@ echo "---"
 echo "Merging error stat files (merging of forward and reverse results)"
 
 if ls $seq_err_stat_dir/*reverse* > /dev/null 2>&1; then
-  for stat_err_file_reverse in $seq_err_stat_dir/*reverse*
+  for stat_err_file_reverse in ${seq_err_stat_dir}*reverse*
   do
     echo $stat_err_file_reverse
     stat_err_file_forward=${stat_err_file_reverse/_reverse/}
