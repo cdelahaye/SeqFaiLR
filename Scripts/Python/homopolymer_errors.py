@@ -553,7 +553,7 @@ def compute_results():
                         tmp_list += [(dict_prct_correct[group_name][length][i][0] /
                                       dict_prct_correct[group_name][length][i][1] * 100)]
                 L_prct_correct += [tmp_list]
-    
+
             box = plt.boxplot(L_prct_correct, positions=L_positions,
                               widths=BOXPLOT_WIDTH, patch_artist=True)
             for item in ['medians']:
@@ -567,7 +567,7 @@ def compute_results():
         plt.xlabel("Theoretical homopolymer length (reference genome)")
         plt.ylabel("Errorless sequenced homopolymer ratio (reads)")
         plt.legend(title="Species:", handles=L_patches)
-    
+
     # -- otherwise user defined groups: plot --
     else:
         # Prepare data for the plot, and converts counts to ratios
@@ -599,7 +599,7 @@ def compute_results():
                    labels=L_lengths)
         plt.xlabel("Theoretical homopolymer length (reference genome)")
         plt.ylabel("Errorless sequenced homopolymer ratio (reads)")
-        
+
         # Reorder legend labels
         handles, labels = plt.gca().get_legend_handles_labels()
         by_label = dict(zip(labels, handles))
@@ -607,7 +607,7 @@ def compute_results():
         ordered_label_values = [by_label[k] for k in ordered_label_list]
         plt.legend(ordered_label_values, ordered_label_list, title="Species:")
 
-    
+
     plt.ylim(bottom=-1)
     plt.savefig(OUTPUT_PLOT + "percentage_homopolymer_correctly_sequenced_by_length.png")
     plt.close()
@@ -672,9 +672,9 @@ def compute_results():
             plt.legend(title="Bases:", handles=L_patches)
             plt.savefig(OUTPUT_PLOT + f"percentage_homopolymer_correctly_sequenced_by_length_base_detail_{group_name}.png")
             plt.close()
-    
+
     # --- In case no groups were defined by user: plot ---
-    else: # TODO
+    else:
         position = 0
         nb_bases = len(L_bases)
         offset_intra = 0.401 # margin between bases (same length)
@@ -725,16 +725,26 @@ def compute_results():
                                       + "\n")
             RAW_OUTPUT_FILE.write("\n")
         RAW_OUTPUT_FILE.write("\n\n")
-    RAW_OUTPUT_FILE.close() # TODO
+    RAW_OUTPUT_FILE.close()
 
 
     # 4/ --- Plot dictionary storing homopolymer length differences ---
     #     between genomic expected one, and the actual sequenced one
+    
+    # Set positions
+    offset = 0.3
+    dict_positions = {grp:[] for grp in range(len(L_groups))}
+    pos = 0
+    for value in range(MIN_HOMOPOLYMER_LENGTH, MAX_HOMOPOLYMER_LENGTH+1):
+        for i_grp in range(len(L_groups)):
+            dict_positions[i_grp] += [round(pos,1)]
+            pos += offset
+        pos += offset
+
+
     fig, ax = plt.subplots()
-    offset = 0.25
-    position = 0
     L_patches = []
-    for group_name in L_groups:
+    for i_grp, group_name in enumerate(L_ordered_species):
         color = dict_species_group_color[group_name]
         if dict_diff_length_sequenced[group_name][MIN_HOMOPOLYMER_LENGTH] == {}:
             position += offset
@@ -743,10 +753,9 @@ def compute_results():
         for homopolymer_genome_length in dict_diff_length_sequenced[group_name]:
             L_to_plot += [get_statistics(dict_diff_length_sequenced[group_name][homopolymer_genome_length])]
 
-        boxprops = dict(linewidth=4)
+        boxprops = dict(linewidth=1)
         box = ax.bxp(L_to_plot, showfliers=False,
-                     positions=np.arange(MIN_HOMOPOLYMER_LENGTH + position,
-                                         MAX_HOMOPOLYMER_LENGTH + position + 1),
+                     positions=dict_positions[i_grp],
                      patch_artist=True, widths=BOXPLOT_WIDTH, boxprops=boxprops)
         for item in ['boxes', 'fliers']:
             plt.setp(box[item], color=color)
@@ -759,19 +768,35 @@ def compute_results():
         L_patches += [patch]
     # Add expected distribution x = y
     L_x, L_y = [], []
+    posx = 0 
     for i in range(MIN_HOMOPOLYMER_LENGTH, MAX_HOMOPOLYMER_LENGTH + 1):
-        L_x += [i - 0.2, i, i+0.2]
-        L_y += [i, i, i]
+        for N in range(len(L_groups)):
+            L_x += [posx]
+            posx += offset      
+            L_y += [i]
+        posx += offset
+            
+
+        
+        
+    
     plt.plot(L_x, L_y, "--", color="black")
     # Details of the plot
     plt.yscale("log")
-    L_tick_pos = np.arange(MIN_HOMOPOLYMER_LENGTH + (offset * (nb_groups-1)/2),
-                           MAX_HOMOPOLYMER_LENGTH+1 + (offset * (nb_groups-1)/2))
+    L_tick_pos = []
+    pos = 0 
+    for i in range(MIN_HOMOPOLYMER_LENGTH, MAX_HOMOPOLYMER_LENGTH + 1):
+        L_tick_pos += [pos + (len(L_groups)-1)/2*offset]
+        pos += offset * (len(L_groups)+1)
     plt.xticks(ticks=L_tick_pos,
                labels=[length for length in dict_diff_length_sequenced[group_name]])
     plt.xlabel("Theoretical homopolymer lengths (reference genome)")
     plt.ylabel("Sequenced hompolymer lengths (reads)")
-    plt.legend(handles=L_patches, title="Groups:")
+    if os.path.exists(FILE_SPECIES_GROUP):
+        title = "Groups:"
+    else:
+        title = "Species:"
+    plt.legend(handles=L_patches, title=title)
     plt.savefig(OUTPUT_PLOT + "difference_expected_sequenced_homopolymer_length.png")
     plt.close()
 
