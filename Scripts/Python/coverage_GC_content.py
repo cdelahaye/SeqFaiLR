@@ -136,12 +136,13 @@ def merge_results_groups(dict_unmerged_results, dict_groups):
 if __name__ == "__main__":
 
     ## Parses arguments
-    NUMBER_EXPECTED_ARGUMENTS = 8
+    NUMBER_EXPECTED_ARGUMENTS = 9
     if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
         print(f"ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but {len(sys.argv)-1} given.")
         sys.exit(2)
-    ALN_DIRNAME, GENOME_DIRNAME, FILENAME_COLOR_GC_SPECIES, OUTPUT_RAW, OUTPUT_PLOT, FILE_SPECIES_GROUPS, WINDOW_SIZE, NB_MAX_BASES = sys.argv[1:]
+    ALN_DIRNAME, GENOME_DIRNAME, FILENAME_COLOR_GC_SPECIES, OUTPUT_RAW, OUTPUT_PLOT, FILE_SPECIES_GROUPS, WINDOW_SIZE, NB_MIN_BASES, NB_MAX_BASES = sys.argv[1:]
     WINDOW_SIZE = int(WINDOW_SIZE)
+    NB_MIN_BASES = int(NB_MIN_BASES)
     NB_MAX_BASES = int(NB_MAX_BASES)
 
     if NB_MAX_BASES == -1:
@@ -246,7 +247,7 @@ if __name__ == "__main__":
         list_mean_coverage = []
         for gc_content in sorted(dict_GC_coverage):
             L_coverage = dict_GC_coverage[gc_content]
-            if len(L_coverage) < 1000:
+            if len(L_coverage) < NB_MIN_BASES:
                 continue
             list_GC += [gc_content]
             list_mean_coverage += [np.mean(L_coverage)/expected_coverage]

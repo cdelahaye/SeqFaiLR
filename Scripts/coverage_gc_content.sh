@@ -13,7 +13,8 @@ output_graph_dir="./Output/Coverage_gc_bias/" # output directory: graphics
 file_color_gc_species="./Data/species_color_GC.txt" # file containing GC content of each species, and a dedicated color for plots
 file_species_groups="./Data/species_groups.txt" # file containing species groups
 window_size=$1
-nb_max_bases=$2
+nb_min_bases=$2
+nb_max_bases=$3
 
 mkdir -p $output_graph_dir
 mkdir -p $output_raw_dir
@@ -31,7 +32,7 @@ fi
 
 
 # Runs the script
-python3 -u ./Scripts/Python/coverage_GC_content.py $aln_expl_dir $ref_dir $file_color_gc_species $output_raw_dir $output_graph_dir $file_species_groups $window_size $nb_max_bases
+python3 -u ./Scripts/Python/coverage_GC_content.py $aln_expl_dir $ref_dir $file_color_gc_species $output_raw_dir $output_graph_dir $file_species_groups $window_size $nb_min_bases $nb_max_bases
 
 echo "Done."
 echo "---"

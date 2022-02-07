@@ -8,7 +8,7 @@
 # - - - Error rate depending on quality scores - - -
 err_qual_window_length=100
 err_qual_max_aln_nb=200
-err_qual_min_occ_read=10
+err_qual_min_occ_read=2 #10
 err_qual_min_occ_window=1000
 
 # - - - Quality scores along raw reads - - -
@@ -16,6 +16,7 @@ qual_read_end_length=100
 
 # - - - Relative coverage depending on GC content of reads - - -
 cov_gc_window_size=100
+cov_gc_min_bases=1000
 cov_gc_max_bases=100000
 
 # - - - Error rate depending on GC content of reads - - -
@@ -148,7 +149,7 @@ case $mode in
      ./Scripts/quality_along_raw_reads.sh $qual_read_end_length
      ;;
    gc )
-     ./Scripts/coverage_gc_content.sh $cov_gc_window_size $cov_gc_max_bases
+     ./Scripts/coverage_gc_content.sh $cov_gc_window_size $cov_gc_min_bases $cov_gc_max_bases
      ./Scripts/error_rates_gc_read.sh $err_gc_nb_max_aln $err_gc_min_occ_to_plot
 
      ;;
