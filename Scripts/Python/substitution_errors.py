@@ -216,7 +216,7 @@ def plot_substitution_errors(dictionary, dictionary_groups):
         L_label_positions += [np.median(tmp_pos)]
         position -= offset_group
         position += offset_inter_substitutions
-    
+
     # --- If user defineds groups: boxplots ---
     if os.path.exists(FILENAME_SPECIES_GROUPS):
         for i, group_name in enumerate(set_group_names):
@@ -226,20 +226,21 @@ def plot_substitution_errors(dictionary, dictionary_groups):
             for item in ["boxes", "whiskers", "fliers", "caps"]:
                 plt.setp(tmp_boxplot[item], color=tmp_color)
             plt.setp(tmp_boxplot["medians"], color="black")
-    
+
         legend_colors = list_colors_hex
         legend_texts = list(set_group_names)
         legend_patches = [ mpatches.Patch(color=legend_colors[i], label="{:s}".format(legend_texts[i])) \
                           for i in range(len(legend_texts)) ]
         plt.legend(handles=legend_patches, title="Species groups:", ncol=2)
-    
-        
+
+
     # --- Otherwise, plot for each species ---
     else:
         for i, group_name in enumerate(set_group_names):
             color = list_colors_hex[i]
             plt.plot(dict_positions[group_name], dictionary[group_name], "o", ms=4, 
-                     color=color, label=group_name)
+                     color=color, label=group_name,
+		     mec="black", mew=1)
         plt.legend(title="Species groups:", ncol=2)
 
     plt.xticks(ticks=L_label_positions, labels=list_labels)
