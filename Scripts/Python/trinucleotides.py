@@ -118,6 +118,42 @@ def get_groups(filename):
 
     return dictionary_group, dictionary_color
 
+def get_short_name(long_name):
+    L_name = long_name.replace("_", " ").split(" ")
+    L_name[0] = L_name[0][0] + "."
+    short_name = " ".join(L_name)
+    return short_name
+
+
+def get_label_name(long_name):
+    long_name = long_name.replace("_", " ").split(" ")
+    label_name = long_name[0][0] + "."
+    for elt in long_name[1:]:
+        label_name += " " + elt[:3]
+        
+    return label_name
+
+
+def build_group_per_species(filename):
+    """
+    If no group were defined by user, create N groups (1 for each of the N species)
+    """
+    dictionary_group = {}
+    dictionary_color = {}
+    file = open(filename, "r")
+    for line in file:
+        species_name, color, gc = line.rstrip().split("\t")
+        gc = float(gc)
+        species_name = get_short_name(species_name)
+        group_name = species_name
+        dictionary_group[species_name] = group_name
+        dictionary_color[group_name] = color
+        
+    file.close()
+
+    return dictionary_group, dictionary_color
+
+
 
 def convert_trinucleotide_to_pattern(sequence: str):
     """
@@ -275,14 +311,6 @@ def compute_results():
 
     nb_groups = len(L_groups)
     nb_lengths = len(L_lengths)
-    width = 0.5
-    offset_trinucleotide = 0.1 + width # space between 2 trinucleotides types for same species group, same length
-    offset_group = width # space between results of 2 species groups
-    offset_length = 2*width # space between results of 2 different length
-
-    L_start_pos = np.arange(0,
-                            (nb_lengths) * (nb_groups * (4*offset_trinucleotide + offset_group) + offset_length),
-                            nb_groups * (4*offset_trinucleotide + offset_group) + offset_length)
 
 
 
@@ -296,38 +324,82 @@ def compute_results():
     newax.patch.set_visible(False)
     newax.xaxis.set_ticks_position('bottom')
     newax.xaxis.set_label_position('bottom')
-    newax.spines['bottom'].set_position(('outward', 40))
+    newax.spines['bottom'].set_position(('outward', 50))
 
     fig.set_dpi(300)
-    for i, group_name in enumerate(dict_occurrences_accuracy):
-        for trinucleotide in ["S only", "Mainly S", "Mainly W", "W only"]:
-            list_abundance = []
-            for length in L_lengths:
-                # -1 values denote that they were absent in dataset
-                # here, remove -1 to keep only "true" values
-                abundances = dict_occurrences_accuracy[group_name][trinucleotide][length][1]
-                abundances = [elt for elt in abundances if elt!=-1]
-                list_abundance += [abundances]
-
-            bplot = ax.boxplot(list_abundance, widths=width,
-                               positions=L_start_pos,
-                               patch_artist=True,
-                               zorder=-1)
-            colors = [dict_color_trinucl[trinucleotide]]*5
-
-            for patch, color in zip(bplot['boxes'], colors):
-                patch.set_facecolor(color)
-                patch.set_edgecolor("black")
-                patch.set_color(color)
-            [item.set_color('k') for item in bplot['medians']] # set median line black
-
-            L_start_pos += offset_trinucleotide
-        L_start_pos += offset_group
-
-
-    ax.legend(handles=[patch_S_only, patch_main_S, patch_main_W, patch_W_only],
-              title="Trinucleotides types:", ncol=8)
-
+    
+    # --- If groups have been defined by user: boxplot ---
+    if os.path.exists(FILE_SPECIES_GROUP):
+        width = 0.5
+        offset_trinucleotide = 0.1 + width # space between 2 trinucleotides types for same species group, same length
+        offset_group = width # space between results of 2 species groups
+        offset_length = 2*width # space between results of 2 different length
+        L_start_pos = np.arange(0,
+                        (nb_lengths) * (nb_groups * (4*offset_trinucleotide + offset_group) + offset_length),
+                        nb_groups * (4*offset_trinucleotide + offset_group) + offset_length)
+        for i, group_name in enumerate(dict_occurrences_accuracy):
+            for trinucleotide in ["S only", "Mainly S", "Mainly W", "W only"]:
+                list_abundance = []
+                for length in L_lengths:
+                    # -1 values denote that they were absent in dataset
+                    # here, remove -1 to keep only "true" values
+                    abundances = dict_occurrences_accuracy[group_name][trinucleotide][length][1]
+                    abundances = [elt for elt in abundances if elt!=-1]
+                    list_abundance += [abundances]
+    
+                bplot = ax.boxplot(list_abundance, widths=width,
+                                   positions=L_start_pos,
+                                   patch_artist=True,
+                                   zorder=-1)
+                colors = [dict_color_trinucl[trinucleotide]]*5
+    
+                for patch, color in zip(bplot['boxes'], colors):
+                    patch.set_facecolor(color)
+                    patch.set_edgecolor("black")
+                    patch.set_color(color)
+                [item.set_color('k') for item in bplot['medians']] # set median line black
+    
+                L_start_pos += offset_trinucleotide
+            L_start_pos += offset_group
+    
+    
+        ax.legend(handles=[patch_S_only, patch_main_S, patch_main_W, patch_W_only],
+                  title="Trinucleotides types:", ncol=4)
+    
+        
+    # --- Otherwise: plot ---
+    else:
+        width = 0.41
+        offset_trinucleotide = 0.1 + width # space between 2 trinucleotides types for same species group, same length
+        offset_group = width # space between results of 2 species groups
+        offset_length = 2*width # space between results of 2 different length
+        L_start_pos = np.arange(0,
+                        (nb_lengths) * (nb_groups * (4*offset_trinucleotide + offset_group) + offset_length),
+                        nb_groups * (4*offset_trinucleotide + offset_group) + offset_length)
+        for i, group_name in enumerate(dict_occurrences_accuracy):
+            for trinucleotide in ["S only", "Mainly S", "Mainly W", "W only"]:
+                list_abundance = []
+                for length in L_lengths:
+                    abundances = dict_occurrences_accuracy[group_name][trinucleotide][length][1]
+                    if abundances == [] or abundances == [-1]:
+                        abundances = [float("-inf")]
+                    list_abundance += [abundances[0]]
+    
+                if list_abundance[0] == []:
+                    continue
+                
+                if i == 0:
+                    plt.plot(L_start_pos, list_abundance, "o", color=dict_color_trinucl[trinucleotide],
+                             label=trinucleotide, ms=4)
+                else:
+                    plt.plot(L_start_pos, list_abundance, "o", color=dict_color_trinucl[trinucleotide],
+                             ms=4)
+    
+                L_start_pos += offset_trinucleotide
+            L_start_pos += offset_group
+    
+        plt.legend(title="Trinucleotides types:", ncol=4)
+    
     #plt.yscale("log")
     plt.xlabel("Number of repetitions")
     ax.set_ylabel("Occurrences ratio of sequenced genomic trinucleotides (%)")
@@ -340,9 +412,19 @@ def compute_results():
             L_xlabels1_pos += [p + 1.5 * offset_trinucleotide] # 1.5 to be centered between the 4 categories (=> 3 gaps / 2)
             p += 4 * offset_trinucleotide + offset_group
         p += offset_length
-    L_xlabels1_labels = L_groups * nb_lengths
-    ax.set_xticks(L_xlabels1_pos)
-    ax.set_xticklabels(L_xlabels1_labels)
+    if os.path.exists(FILE_SPECIES_GROUP):
+        L_xlabels1_labels = L_groups * nb_lengths
+        ax.set_xticks(L_xlabels1_pos)
+        ax.set_xticklabels(L_xlabels1_labels)
+    else:
+        L_xlabels1_labels = [get_label_name(elt) for elt in L_groups] * nb_lengths 
+        ax.set_xticks(L_xlabels1_pos)
+        ax.set_xticklabels(L_xlabels1_labels, rotation=90, fontsize=8)
+    min_xlim, max_xlim = ax.get_xlim()
+    ax.set_xlim(min_xlim-1, max_xlim+2)
+    min_ylim, max_ylim = ax.get_ylim()
+    ax.set_ylim(max(-0.5, min_ylim-5),
+                min(101, max_ylim+5))
 
 
     # Second x-axis labels = trinucleotide lengths
@@ -351,7 +433,7 @@ def compute_results():
     L_xlabels2_labels = L_lengths
     newax.set_xticks(L_xlabels2_pos)
     newax.set_xticklabels(L_xlabels2_labels)
-
+    
     plt.savefig(OUTPUT_PLOT + "trinucleotide_occurrences.png")
     plt.close()
 
@@ -373,38 +455,88 @@ def compute_results():
     newax.patch.set_visible(False)
     newax.xaxis.set_ticks_position('bottom')
     newax.xaxis.set_label_position('bottom')
-    newax.spines['bottom'].set_position(('outward', 40))
+    newax.spines['bottom'].set_position(('outward', 50))
 
-    #fig.set_dpi(300)
-    for i, group_name in enumerate(dict_occurrences_accuracy):
-        for trinucleotide in ["S only", "Mainly S", "Mainly W", "W only"]:
-            list_accuracy = []
-            for length in L_lengths:
-                # -1 values denote that they were absent in dataset
-                # here, remove -1 to keep only "true" values
-                accuracy = dict_occurrences_accuracy[group_name][trinucleotide][length][0]
-                accuracy = [elt for elt in accuracy if elt!=-1]
-                list_accuracy += [accuracy]
+    fig.set_dpi(300)
+    # --- If groups have been defined by user: boxplot ---
+    if os.path.exists(FILE_SPECIES_GROUP):
+        for i, group_name in enumerate(dict_occurrences_accuracy):
+            for trinucleotide in ["S only", "Mainly S", "Mainly W", "W only"]:
+                list_accuracy = []
+                for length in L_lengths:
+                    # -1 values denote that they were absent in dataset
+                    # here, remove -1 to keep only "true" values
+                    accuracy = dict_occurrences_accuracy[group_name][trinucleotide][length][0]
+                    accuracy = [elt for elt in accuracy if elt!=-1]
+                    list_accuracy += [accuracy]
+    
+                bplot = ax.boxplot(list_accuracy, widths=width,
+                                   positions=L_start_pos,
+                                   patch_artist=True,
+                                   zorder=-1)
+                colors = [dict_color_trinucl[trinucleotide]]*5
+    
+                for patch, color in zip(bplot['boxes'], colors):
+                    patch.set_facecolor(color)
+                    patch.set_edgecolor("black")
+                    patch.set_color(color)
+                [item.set_color('k') for item in bplot['medians']] # set median line black
+    
+                L_start_pos += offset_trinucleotide
+            L_start_pos += offset_group
+    
+        ax.legend(handles=[patch_S_only, patch_main_S, patch_main_W, patch_W_only],
+                  title="Trinucleotides types:", ncol=8)
+    
+    
+        # First x-axis labels = species groups
+        L_xlabels1_pos = []
+        p = 0
+        for l in L_lengths:
+            for g in L_groups:
+                L_xlabels1_pos += [p + 1.5 * offset_trinucleotide] # 1.5 to be centered between the 4 categories (=> 3 gaps / 2)
+                p += 4 * offset_trinucleotide + offset_group
+            p += offset_length
+        L_xlabels1_labels = L_groups * nb_lengths
+        ax.set_xticks(L_xlabels1_pos)
+        ax.set_xticklabels(L_xlabels1_labels)
+    
+    
+        # Second x-axis labels = trinucleotide lengths
+        newax.set_xlim(ax.get_xlim()) # set same limits than first x-axis
+        L_xlabels2_pos = [np.mean([L_xlabels1_pos[i:i+nb_groups]]) for i in range(0, len(L_xlabels1_pos), nb_groups)]
+        L_xlabels2_labels = L_lengths
+        newax.set_xticks(L_xlabels2_pos)
+        newax.set_xticklabels(L_xlabels2_labels)
+    
+        
+    # --- Otherwise: plot ---
+    else:
+        for i, group_name in enumerate(dict_occurrences_accuracy):
+            for trinucleotide in ["S only", "Mainly S", "Mainly W", "W only"]:
+                list_accuracy = []
+                for length in L_lengths:
+                    accuracy = dict_occurrences_accuracy[group_name][trinucleotide][length][0]
+                    if accuracy == [] or accuracy == [-1]:
+                        accuracy = [float("-inf")]
+                    list_accuracy += [accuracy[0]]
 
-            bplot = ax.boxplot(list_accuracy, widths=width,
-                               positions=L_start_pos,
-                               patch_artist=True,
-                               zorder=-1)
-            colors = [dict_color_trinucl[trinucleotide]]*5
-
-            for patch, color in zip(bplot['boxes'], colors):
-                patch.set_facecolor(color)
-                patch.set_edgecolor("black")
-                patch.set_color(color)
-            [item.set_color('k') for item in bplot['medians']] # set median line black
-
-            L_start_pos += offset_trinucleotide
-        L_start_pos += offset_group
-
-    ax.legend(handles=[patch_S_only, patch_main_S, patch_main_W, patch_W_only],
-              title="Trinucleotides types:", ncol=8)
-
-
+                if list_accuracy[0] == []:
+                    continue
+                
+                if i == 0:
+                    plt.plot(L_start_pos, list_accuracy, "o", color=dict_color_trinucl[trinucleotide],
+                             label=trinucleotide, ms=4)
+                else:
+                    plt.plot(L_start_pos, list_accuracy, "o", color=dict_color_trinucl[trinucleotide],
+                             ms=4)
+    
+                L_start_pos += offset_trinucleotide
+            L_start_pos += offset_group
+    
+        plt.legend(title="Trinucleotides types:", ncol=4)
+    
+    
     # First x-axis labels = species groups
     L_xlabels1_pos = []
     p = 0
@@ -413,10 +545,20 @@ def compute_results():
             L_xlabels1_pos += [p + 1.5 * offset_trinucleotide] # 1.5 to be centered between the 4 categories (=> 3 gaps / 2)
             p += 4 * offset_trinucleotide + offset_group
         p += offset_length
-    L_xlabels1_labels = L_groups * nb_lengths
-    ax.set_xticks(L_xlabels1_pos)
-    ax.set_xticklabels(L_xlabels1_labels)
-
+    
+    if os.path.exists(FILE_SPECIES_GROUP):
+        L_xlabels1_labels = L_groups * nb_lengths
+        ax.set_xticks(L_xlabels1_pos)
+        ax.set_xticklabels(L_xlabels1_labels)
+    else:
+        L_xlabels1_labels = [get_label_name(elt) for elt in L_groups] * nb_lengths
+        ax.set_xticks(L_xlabels1_pos)
+        ax.set_xticklabels(L_xlabels1_labels, rotation=90, fontsize=8)
+    min_xlim, max_xlim = ax.get_xlim()
+    ax.set_xlim(min_xlim-1, max_xlim+2)
+    min_ylim, max_ylim = ax.get_ylim()
+    ax.set_ylim(max(-0.5, min_ylim-5),
+                min(101, max_ylim+5))
 
     # Second x-axis labels = trinucleotide lengths
     newax.set_xlim(ax.get_xlim()) # set same limits than first x-axis
@@ -424,7 +566,7 @@ def compute_results():
     L_xlabels2_labels = L_lengths
     newax.set_xticks(L_xlabels2_pos)
     newax.set_xticklabels(L_xlabels2_labels)
-
+    
     plt.xlabel("Number of repetitions")
     ax.set_ylabel("Correctly sequenced trinucleotides (%)")
     plt.savefig(OUTPUT_PLOT + "trinucleotide_accuracy.png")
@@ -502,11 +644,17 @@ if __name__ == "__main__":
     #   for example ACGACG is of length 6 (thus can only be multiples of 3)
     L_lengths = list(np.arange(MIN_LENGTH, MAX_LENGTH, 3)) + [f"{MAX_LENGTH}+"]
 
-    # Get groups of species
-    dict_species_group, dict_species_group_color = get_groups(FILE_SPECIES_GROUP)
+
+    # Group species:
+    #   - by user defined group (if exists)
+    if os.path.exists(FILE_SPECIES_GROUP):
+        dict_species_group, dict_species_group_color = get_groups(FILE_SPECIES_GROUP)
+    #   - else build artificial groups: one per species
+    else:
+        dict_species_group, dict_species_group_color = build_group_per_species(FILE_SPECIES_GC)
     L_groups = sorted(set(dict_species_group.values()))
-
-
+    
+    
     # Initiate dictionary to store results
     dict_occurrences_accuracy = initiate_accuracy_dict()
 
@@ -519,7 +667,7 @@ if __name__ == "__main__":
 
         species_name = aln_filename.split(".txt")[0]
         print("  ", species_name)
-        group_name = dict_species_group[species_name]
+        group_name = dict_species_group[get_short_name(species_name)]
         aln_file = open(aln_path, "r")
 
         # temporary dictionary storing result for current species
@@ -601,3 +749,4 @@ if __name__ == "__main__":
 
 
         compute_results()
+

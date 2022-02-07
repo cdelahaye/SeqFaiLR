@@ -57,6 +57,40 @@ def get_groups(filename):
 
     return dictionary_group, dictionary_color
 
+def get_short_name(long_name):
+    L_name = long_name.replace("_", " ").split(" ")
+    L_name[0] = L_name[0][0] + "."
+    short_name = " ".join(L_name)
+    return short_name
+
+
+
+def build_group_per_species(filename):
+    """
+    If no group were defined by user, create N groups (1 for each of the N species)
+    Also returns list of ordered species (based on their GC content)
+    """
+    dictionary_group = {}
+    dictionary_color = {}
+    dict_gc = {}
+    file = open(filename, "r")
+    for line in file:
+        species_name, color, gc = line.rstrip().split("\t")
+        gc = float(gc)
+        species_name = get_short_name(species_name)
+        group_name = species_name
+        dictionary_group[species_name] = group_name
+        dictionary_color[group_name] = color
+        if gc not in dict_gc:
+            dict_gc[gc] = []
+        dict_gc[gc] += [species_name]
+        
+    L_ordered_species = [get_short_name(species_name) for gc in sorted(dict_gc)
+                                                      for species_name in dict_gc[gc]]
+    file.close()
+
+    return dictionary_group, dictionary_color, L_ordered_species
+
 
 def get_total_number_of_lines(filename: str) -> int:
     """Returns number of lines of filename given as input
@@ -235,7 +269,7 @@ def get_genomic_homopolymer_distribution(filename, group_name):
         plt.xticks(L_xticks, L_xtick_labels)
         plt.legend(title="Bases", ncol=len(L_bases))
         plt.title(f"Distribution of homopolymer lengths for {group_name}")
-        plt.savefig(OUTPUT_PLOT + f"homopolymer_genomic_distribution_{group_name}.png")
+        plt.savefig(OUTPUT_PLOT + f"homopolymer_genomic_distribution_{group_name.replace(' ', '_')}.png")
         plt.close()
 
 
@@ -479,7 +513,7 @@ def compute_results():
                 i_column = 0
 
         fig.legend(title="Error:", labels=L_label, ncol=len(L_label))
-        plt.savefig(OUTPUT_PLOT + f"error_rates_depending_on_homopolymer_length_{group_name}.png")
+        plt.savefig(OUTPUT_PLOT + f"error_rates_depending_on_homopolymer_length_{group_name.replace(' ', '_')}.png")
         plt.close()
 
     #   b) Save raw results in .txt file
@@ -497,41 +531,84 @@ def compute_results():
 
 
     # 3/ --- Plots ratio of correctly sequenced homopolymers over and total number of homopolymers ---
-    # Prepare data for the plot, and converts counts to ratios
-    nb_groups = len(L_groups)
-    offset_intra = 0.25 # margin between groups (same length)
-    offset_inter = (nb_groups+2) * offset_intra  # margin between homopolymer length
-    position = 0
-    L_patches = []
-    for i_grp, group_name in enumerate(dict_prct_correct):
-        position = i_grp * offset_intra
-        color = dict_species_group_color[group_name]
-        L_positions = [] # Position of plot
-        L_prct_correct = [] # Values to plot
-        for length in dict_prct_correct[group_name]:
-            L_positions += [position]
-            position += offset_inter
-            tmp_list = []
-            for i, _ in enumerate(dict_prct_correct[group_name][length]):
-                if dict_prct_correct[group_name][length][i][1] != 0:
-                    tmp_list += [(dict_prct_correct[group_name][length][i][0] /
-                                  dict_prct_correct[group_name][length][i][1] * 100)]
-            L_prct_correct += [tmp_list]
+    # -- if user defined groups: boxplot --
+    if os.path.exists(FILE_SPECIES_GROUP):
+        # Prepare data for the plot, and converts counts to ratios
+        nb_groups = len(L_groups)
+        offset_intra = 0.25 # margin between groups (same length)
+        offset_inter = (nb_groups+2) * offset_intra  # margin between homopolymer length
+        position = 0
+        L_patches = []
+        for i_grp, group_name in enumerate(dict_prct_correct):
+            position = i_grp * offset_intra
+            color = dict_species_group_color[group_name]
+            L_positions = [] # Position of plot
+            L_prct_correct = [] # Values to plot
+            for length in dict_prct_correct[group_name]:
+                L_positions += [position]
+                position += offset_inter
+                tmp_list = []
+                for i, _ in enumerate(dict_prct_correct[group_name][length]):
+                    if dict_prct_correct[group_name][length][i][1] != 0:
+                        tmp_list += [(dict_prct_correct[group_name][length][i][0] /
+                                      dict_prct_correct[group_name][length][i][1] * 100)]
+                L_prct_correct += [tmp_list]
+    
+            box = plt.boxplot(L_prct_correct, positions=L_positions,
+                              widths=BOXPLOT_WIDTH, patch_artist=True)
+            for item in ['medians']:
+                plt.setp(box[item], color="black")
+            for patch in box['boxes']:
+                patch.set(facecolor=color)
+            patch = mpatches.Patch(color=color, label=group_name)
+            L_patches += [patch]
+        plt.xticks(ticks=[i* offset_inter + ((nb_groups-1)/2 * offset_intra) for i in range(len(L_lengths))],
+                   labels=L_lengths)
+        plt.xlabel("Theoretical homopolymer length (reference genome)")
+        plt.ylabel("Errorless sequenced homopolymer ratio (reads)")
+        plt.legend(title="Species:", handles=L_patches)
+    
+    # -- otherwise user defined groups: plot --
+    else:
+        # Prepare data for the plot, and converts counts to ratios
+        nb_groups = len(L_groups)
+        offset_intra = 0.401 # margin between groups (same length)
+        offset_inter = (nb_groups+2) * offset_intra  # margin between homopolymer length
+        position = 0
+        for i_grp, group_name in enumerate(L_ordered_species):
+            position = i_grp * offset_intra
+            color = dict_species_group_color[group_name]
+            L_positions = [] # Position of plot
+            L_prct_correct = [] # Values to plot
+            for length in dict_prct_correct[group_name]:
+                L_positions += [position]
+                position += offset_inter
+                if dict_prct_correct[group_name][length] == []:
+                    tmp_list = [float("-inf")]
+                else:
+                    tmp_list = []
+                    for i, _ in enumerate(dict_prct_correct[group_name][length]):
+                        if dict_prct_correct[group_name][length][i][1] != 0:
+                            tmp_list += [(dict_prct_correct[group_name][length][i][0] /
+                                          dict_prct_correct[group_name][length][i][1] * 100)]
+                        else:
+                            tmp_list += [float("-inf")]
+                L_prct_correct += [tmp_list]
+            plt.plot(L_positions, L_prct_correct, "o", color=color, label=group_name, ms=4)
+        plt.xticks(ticks=[i* offset_inter + ((nb_groups-1)/2 * offset_intra) for i in range(len(L_lengths))],
+                   labels=L_lengths)
+        plt.xlabel("Theoretical homopolymer length (reference genome)")
+        plt.ylabel("Errorless sequenced homopolymer ratio (reads)")
+        
+        # Reorder legend labels
+        handles, labels = plt.gca().get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        ordered_label_list = [elt for elt in L_ordered_species if elt in by_label]
+        ordered_label_values = [by_label[k] for k in ordered_label_list]
+        plt.legend(ordered_label_values, ordered_label_list, title="Species:")
 
-        box = plt.boxplot(L_prct_correct, positions=L_positions,
-                          widths=BOXPLOT_WIDTH, patch_artist=True)
-        for item in ['medians']:
-            plt.setp(box[item], color="black")
-        for patch in box['boxes']:
-            patch.set(facecolor=color)
-        patch = mpatches.Patch(color=color, label=group_name)
-        L_patches += [patch]
-    plt.xticks(ticks=[i* offset_inter + ((nb_groups-1)/2 * offset_intra) for i in range(len(L_lengths))],
-               labels=L_lengths)
-    plt.xlabel("Theoretical homopolymer length (reference genome)")
-    plt.ylabel("Errorless sequenced homopolymer ratio (reads)")
-    plt.legend(title="Species:", handles=L_patches)
-
+    
+    plt.ylim(bottom=-1)
     plt.savefig(OUTPUT_PLOT + "percentage_homopolymer_correctly_sequenced_by_length.png")
     plt.close()
 
@@ -554,46 +631,82 @@ def compute_results():
 
 
     # 3-bis/ Modified version with details for A, C, G and T homopolymers
-    position = 0
-    nb_bases = len(L_bases)
-    offset_intra = 0.25 # margin between bases (same length)
-    offset_inter = (nb_bases+2) * offset_intra  # margin between length
-    L_patches = []
-    for i_grp, group_name in enumerate(dict_prct_correct_detail_bases):
-        if dict_prct_correct_detail_bases[group_name][L_bases[0]][MIN_HOMOPOLYMER_LENGTH] == []:
-            continue
-        for i_base, base in enumerate(dict_prct_correct_detail_bases[group_name]):
-            position = i_base * offset_intra
-            color = dict_bases_colors[base]
-            L_positions = [] # Position of plot
-            L_prct_correct = [] # Values to plot
-            for length in dict_prct_correct_detail_bases[group_name][base]:
-                tmp_list = []
-                for i, _ in enumerate(dict_prct_correct_detail_bases[group_name][base][length]):
-                    if dict_prct_correct_detail_bases[group_name][base][length][i][1] != 0:
-                        tmp_list += [(dict_prct_correct_detail_bases[group_name][base][length][i][0] /
-                                      dict_prct_correct_detail_bases[group_name][base][length][i][1] * 100)]
-                if tmp_list == []:
-                    break
-                L_prct_correct += [tmp_list]
-                L_positions += [position]
-                position += offset_inter
-            box = plt.boxplot(L_prct_correct, positions=L_positions,
-                              widths=BOXPLOT_WIDTH, patch_artist=True)
-            for item in ['medians']:
-                plt.setp(box[item], color="black")
-            for patch in box['boxes']:
-                patch.set(facecolor=color)
-            patch = mpatches.Patch(color=color, label=base)
-            L_patches += [patch]
-        plt.xticks(ticks=[i*offset_inter + ((nb_bases-1)/2 * offset_intra) for i in range(len(L_lengths))],
-                   labels=L_lengths)
-        plt.xlabel("Theoretical homopolymer length (reference genome)")
-        plt.ylabel("Errorless sequenced homopolymer ratio (reads)")
-        plt.legend(title="Bases:", handles=L_patches)
-        plt.savefig(OUTPUT_PLOT + f"percentage_homopolymer_correctly_sequenced_by_length_base_detail_{group_name}.png")
-        plt.close()
-
+    # --- In case groups were defined by user: boxplot ---
+    if os.path.exists(FILE_SPECIES_GROUP):
+        position = 0
+        nb_bases = len(L_bases)
+        offset_intra = 0.25 # margin between bases (same length)
+        offset_inter = (nb_bases+2) * offset_intra  # margin between length
+        L_patches = []
+        for i_grp, group_name in enumerate(dict_prct_correct_detail_bases):
+            if dict_prct_correct_detail_bases[group_name][L_bases[0]][MIN_HOMOPOLYMER_LENGTH] == []:
+                continue
+            for i_base, base in enumerate(dict_prct_correct_detail_bases[group_name]):
+                position = i_base * offset_intra
+                color = dict_bases_colors[base]
+                L_positions = [] # Position of plot
+                L_prct_correct = [] # Values to plot
+                for length in dict_prct_correct_detail_bases[group_name][base]:
+                    tmp_list = []
+                    for i, _ in enumerate(dict_prct_correct_detail_bases[group_name][base][length]):
+                        if dict_prct_correct_detail_bases[group_name][base][length][i][1] != 0:
+                            tmp_list += [(dict_prct_correct_detail_bases[group_name][base][length][i][0] /
+                                          dict_prct_correct_detail_bases[group_name][base][length][i][1] * 100)]
+                    if tmp_list == []:
+                        break
+                    L_prct_correct += [tmp_list]
+                    L_positions += [position]
+                    position += offset_inter
+                box = plt.boxplot(L_prct_correct, positions=L_positions,
+                                  widths=BOXPLOT_WIDTH, patch_artist=True)
+                for item in ['medians']:
+                    plt.setp(box[item], color="black")
+                for patch in box['boxes']:
+                    patch.set(facecolor=color)
+                patch = mpatches.Patch(color=color, label=base)
+                L_patches += [patch]
+            plt.xticks(ticks=[i*offset_inter + ((nb_bases-1)/2 * offset_intra) for i in range(len(L_lengths))],
+                       labels=L_lengths)
+            plt.xlabel("Theoretical homopolymer length (reference genome)")
+            plt.ylabel("Errorless sequenced homopolymer ratio (reads)")
+            plt.legend(title="Bases:", handles=L_patches)
+            plt.savefig(OUTPUT_PLOT + f"percentage_homopolymer_correctly_sequenced_by_length_base_detail_{group_name}.png")
+            plt.close()
+    
+    # --- In case no groups were defined by user: plot ---
+    else: # TODO
+        position = 0
+        nb_bases = len(L_bases)
+        offset_intra = 0.401 # margin between bases (same length)
+        offset_inter = (nb_bases+2) * offset_intra  # margin between length
+        for i_grp, group_name in enumerate(L_ordered_species):
+            if dict_prct_correct_detail_bases[group_name][L_bases[0]][MIN_HOMOPOLYMER_LENGTH] == []:
+                continue
+            for i_base, base in enumerate(dict_prct_correct_detail_bases[group_name]):
+                position = i_base * offset_intra
+                color = dict_bases_colors[base]
+                L_positions = [] # Position of plot
+                L_prct_correct = [] # Values to plot
+                for length in dict_prct_correct_detail_bases[group_name][base]:
+                    tmp_list = []
+                    for i, _ in enumerate(dict_prct_correct_detail_bases[group_name][base][length]):
+                        if dict_prct_correct_detail_bases[group_name][base][length][i][1] != 0:
+                            tmp_list += [(dict_prct_correct_detail_bases[group_name][base][length][i][0] /
+                                          dict_prct_correct_detail_bases[group_name][base][length][i][1] * 100)]
+                    if tmp_list == []:
+                        break
+                    L_prct_correct += [tmp_list]
+                    L_positions += [position]
+                    position += offset_inter
+                plt.plot(L_positions, L_prct_correct, "o", color=color, label=base, ms=4)
+            plt.xticks(ticks=[i*offset_inter + ((nb_bases-1)/2 * offset_intra) for i in range(len(L_lengths))],
+                       labels=L_lengths)
+            plt.xlabel("Theoretical homopolymer length (reference genome)")
+            plt.ylabel("Errorless sequenced homopolymer ratio (reads)")
+            plt.legend(title="Bases:")
+            plt.savefig(OUTPUT_PLOT + f"percentage_homopolymer_correctly_sequenced_by_length_base_detail_{group_name}.png")
+            plt.close()
+    
     # Save raw results in .txt file
     RAW_OUTPUT_FILE = open(OUTPUT_RAW + "percentage_homopolymer_correctly_sequenced_by_length_detail.txt", "w")
     for group_name in dict_prct_correct_detail_bases:
@@ -612,7 +725,7 @@ def compute_results():
                                       + "\n")
             RAW_OUTPUT_FILE.write("\n")
         RAW_OUTPUT_FILE.write("\n\n")
-    RAW_OUTPUT_FILE.close()
+    RAW_OUTPUT_FILE.close() # TODO
 
 
     # 4/ --- Plot dictionary storing homopolymer length differences ---
@@ -733,8 +846,13 @@ if __name__ == "__main__":
     # list of error types
     L_errors = ["Mismatch", "Insertion", "Deletion", "Total"]
 
-    # Get groups of species
-    dict_species_group, dict_species_group_color = get_groups(FILE_SPECIES_GROUP)
+    # Group species:
+    #   - by user defined group (if exists)
+    if os.path.exists(FILE_SPECIES_GROUP):
+        dict_species_group, dict_species_group_color = get_groups(FILE_SPECIES_GROUP)
+    #   - else build artificial groups: one per species
+    else:
+        dict_species_group, dict_species_group_color, L_ordered_species = build_group_per_species(FILE_SPECIES_GC)
     L_groups = sorted(set(dict_species_group.values()))
 
     # Pattern for regular expression finding of homopolymers
@@ -793,7 +911,7 @@ if __name__ == "__main__":
 
         species_name = aln_filename.split(".txt")[0]
         aln_file = open(aln_path, "r")
-        group_name = dict_species_group[species_name]
+        group_name = dict_species_group[get_short_name(species_name)]
         L_species += [species_name]
         print("  ", aln_filename)
 
@@ -887,3 +1005,4 @@ if __name__ == "__main__":
 
 
     compute_results()
+

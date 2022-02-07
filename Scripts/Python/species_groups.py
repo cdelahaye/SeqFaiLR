@@ -54,7 +54,7 @@ if __name__ == "__main__":
         dict_group_species[group_name] = []
     elif do_group_all_none == "NO":
         print(" Okay, I wont merge anything!")
-        nb_color = len(os.listdir(RAW_READ_DIR))
+        sys.exit(0)
     else:
         print(" Okay, now tell me more about it!")
     print("")

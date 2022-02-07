@@ -6,6 +6,7 @@
 Analyses substitution errors and output results as a plot
 Results are displayed grouping reads according to their group, as defined by the user during
   initialization step
+Or detailled for each species
 """
 
 # --------------------------------------------------------------------------------------------------
@@ -55,6 +56,12 @@ def init_dict_substitutions():
         dictionary[substitution] = {} # will store occurrences for each species
     return dictionary
 
+def get_short_name(long_name):
+    L_name = long_name.replace("_", " ").split(" ")
+    L_name[0] = L_name[0][0] + "."
+    short_name = " ".join(L_name)
+    return short_name
+
 
 def get_substitution_errors(dictionary, dirname):
     """
@@ -97,23 +104,34 @@ def get_substitution_errors(dictionary, dirname):
 
 def get_species_groups(filename_groups, filename_gc):
     """
-    Parse filename_groups to get user-defined species groups. If no group has been defined, split
-    according to GC content (with filename_gc)
+    Parse filename_groups to get user-defined species groups.
+    If not defined, create a group for each species
     Outputs a dictionary grouping species.
     """
     dictionary = {}
 
     # get user defined groups
-    file_groups = open(filename_groups, "r")
-    while True:
-        line = file_groups.readline()
-        if not line:
-            break
-        species_name = line.split("\t")[1].split(".")[0]
-        group_name = line.split("\t")[0]
-        dictionary[species_name] = group_name
-    file_groups.close()
+    if os.path.exists(filename_groups):
+        file_groups = open(filename_groups, "r")
+        while True:
+            line = file_groups.readline()
+            if not line:
+                break
+            species_name = line.split("\t")[1].split(".")[0]
+            group_name = line.split("\t")[0]
+            dictionary[species_name] = group_name
+        file_groups.close()
 
+    # otherwise, define a group for each species
+    else:
+        file_gc = open(filename_gc, "r")
+        while True:
+            line = file_gc.readline()
+            if not line:
+                break
+            species_name, _, _ = line.split()
+            dictionary[species_name] = get_short_name(species_name)
+        file_gc.close()
 
     return dictionary
 
@@ -198,28 +216,37 @@ def plot_substitution_errors(dictionary, dictionary_groups):
         L_label_positions += [np.median(tmp_pos)]
         position -= offset_group
         position += offset_inter_substitutions
-
-
-    # Finally, plot results
-    for i, group_name in enumerate(set_group_names):
-        tmp_boxplot = plt.boxplot(dictionary[group_name], positions=dict_positions[group_name],
-                                  labels=[""]*len(dict_positions[group_name]), patch_artist=True)
-        tmp_color = list_colors_hex[i]
-        for item in ["boxes", "whiskers", "fliers", "caps"]:
-            plt.setp(tmp_boxplot[item], color=tmp_color)
-        plt.setp(tmp_boxplot["medians"], color="black")
+    
+    # --- If user defineds groups: boxplots ---
+    if os.path.exists(FILENAME_SPECIES_GROUPS):
+        for i, group_name in enumerate(set_group_names):
+            tmp_boxplot = plt.boxplot(dictionary[group_name], positions=dict_positions[group_name],
+                                      labels=[""]*len(dict_positions[group_name]), patch_artist=True)
+            tmp_color = list_colors_hex[i]
+            for item in ["boxes", "whiskers", "fliers", "caps"]:
+                plt.setp(tmp_boxplot[item], color=tmp_color)
+            plt.setp(tmp_boxplot["medians"], color="black")
+    
+        legend_colors = list_colors_hex
+        legend_texts = list(set_group_names)
+        legend_patches = [ mpatches.Patch(color=legend_colors[i], label="{:s}".format(legend_texts[i])) \
+                          for i in range(len(legend_texts)) ]
+        plt.legend(handles=legend_patches, title="Species groups:", ncol=2)
+    
+        
+    # --- Otherwise, plot for each species ---
+    else:
+        for i, group_name in enumerate(set_group_names):
+            color = list_colors_hex[i]
+            plt.plot(dict_positions[group_name], dictionary[group_name], "o", ms=4, 
+                     color=color, label=group_name)
+        plt.legend(title="Species groups:", ncol=2)
 
     plt.xticks(ticks=L_label_positions, labels=list_labels)
     plt.xlim(-1, position)
 
     plt.xlabel("Substitution (genomic base - read base)")
     plt.ylabel("Frequency (%)")
-
-    legend_colors = list_colors_hex
-    legend_texts = list(set_group_names)
-    legend_patches = [ mpatches.Patch(color=legend_colors[i], label="{:s}".format(legend_texts[i])) \
-                      for i in range(len(legend_texts)) ]
-    plt.legend(handles=legend_patches, title="Species groups:", ncol=3)
 
     plt.savefig(OUTPUT_GRAPH)
 
@@ -252,8 +279,8 @@ if __name__ == "__main__":
     dict_substitutions = get_substitution_errors(dict_substitutions, ERRORS_DIRNAME)
 
 
-    # Gather results in categories: low/high GC or user-defined groups
-    dict_species_group = get_species_groups(FILENAME_SPECIES_GROUPS, FILENAME_SPECIES_GC_COLOR)
+    # Gather results in groups, if user defined them
+    dict_species_group = get_species_groups(FILENAME_SPECIES_GROUPS, FILENAME_SPECIES_GC_COLOR,)
     dict_to_plot = gather_data_in_groups(dict_species_group, dict_substitutions)
 
 

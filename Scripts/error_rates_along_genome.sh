@@ -11,7 +11,6 @@ sam_dir="./Data/Mapping/" # input data: directory containing explicit alignment
 ref_gen_dir="./Data/Reference_genomes/" # input data: directory containing reference genomes
 output_graph_dir="./Output/Error_rates_along_genome/" # output directory: graphics
 file_color_gc_species="./Data/species_color_GC.txt" # file containing GC content of each species
-file_species_groups="./Data/species_groups.txt" # file containing species groups
 
 mkdir -p $output_graph_dir
 
@@ -36,7 +35,7 @@ fi
 
 
 # Runs the script
-python3 -u ./Scripts/Python/error_rates_along_genome.py $sam_dir $ref_gen_dir $output_graph_dir $file_color_gc_species $file_species_groups
+python3 -u ./Scripts/Python/error_rates_along_genome.py $sam_dir $ref_gen_dir $output_graph_dir $file_color_gc_species
 
 echo ""
 echo "Done."

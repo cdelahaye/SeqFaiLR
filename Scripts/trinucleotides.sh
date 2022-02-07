@@ -9,7 +9,7 @@ echo "Running $0"
 aln_expl_dir="./Data/Alignment/" # input data: directory containing explicit alignment
 output_graph_dir="./Output/Trinucleotides/" # output directory: graphics
 output_raw_dir="./Analysis/Trinucleotides/" # output directory where raw results are stored
-path_file_color_gc_species="./Data/species_gc_color.txt" # file containing GC content of each species, and a dedicated color for plots
+path_file_color_gc_species="./Data/species_color_GC.txt" # file containing GC content of each species, and a dedicated color for plots
 file_species_groups="./Data/species_groups.txt" # file containing species groups
 min_length=$1
 max_length=$2

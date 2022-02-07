@@ -98,7 +98,7 @@ echo "---"
 echo "Merging error stat files (merging of forward and reverse results)"
 
 if ls $seq_err_stat_dir/*reverse* > /dev/null 2>&1; then
-  for stat_err_file_reverse in ${seq_err_stat_dir}*reverse*
+  for stat_err_file_reverse in $seq_err_stat_dir/*reverse*
   do
     echo $stat_err_file_reverse
     stat_err_file_forward=${stat_err_file_reverse/_reverse/}

@@ -240,6 +240,7 @@ def plot_quality_error_for_reads():
 
         plt.plot(list_qualities, list_error_rates, label=short_species_name, color=color)
         if len(list_qualities) == 0:
+            print("No data kept. Please consider lower err_qual_min_occ_read value in seqfailr main file.")
             continue
         if min(list_qualities) < min_value:
             min_value = min(list_qualities)
@@ -358,11 +359,11 @@ def plot_quality_error_for_read_windows():
 if __name__ == "__main__":
 
     # Parses arguments
-    NUMBER_EXPECTED_ARGUMENTS = 10
+    NUMBER_EXPECTED_ARGUMENTS = 9
     if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
         print(f"   ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but {len(sys.argv)-1} given.")
         sys.exit(2)
-    ALN_EXPL_DIRNAME, RAW_READ_DIRNAME, OUTPUT_RAW, OUTPUT_PLOT, FILENAME_SPECIES_GC_COLOR, FILENAME_SPECIES_GROUPS, WINDOW_LENGTH, MAX_ALN_NB, MIN_OCC_READ, MIN_OCC_WINDOW = sys.argv[1:]
+    ALN_EXPL_DIRNAME, RAW_READ_DIRNAME, OUTPUT_RAW, OUTPUT_PLOT, FILENAME_SPECIES_GC_COLOR, WINDOW_LENGTH, MAX_ALN_NB, MIN_OCC_READ, MIN_OCC_WINDOW = sys.argv[1:]
     WINDOW_LENGTH = int(WINDOW_LENGTH)
     MAX_ALN_NB = int(MAX_ALN_NB)
     MIN_OCC_READ = int(MIN_OCC_READ)

@@ -291,6 +291,9 @@ if __name__ == "__main__":
 
 
     # --- Plot another graph: same but with data grouped ---
+    #  (only if groups were defined by user)
+    if not os.path.exists(FILE_SPECIES_GROUPS):
+        sys.exit(0)
     dict_species_group, dict_color_group = get_species_group(FILE_SPECIES_GROUPS)
     fig = plt.figure()
     ax = fig.add_subplot(111)

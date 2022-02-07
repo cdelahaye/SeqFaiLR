@@ -343,11 +343,11 @@ if __name__ == "__main__":
 
 
     ## Parses arguments
-    NUMBER_EXPECTED_ARGUMENTS = 5
+    NUMBER_EXPECTED_ARGUMENTS = 4
     if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
         print(f"ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but {len(sys.argv)-1} given.")
         sys.exit(2)
-    SAM_DIRNAME, REF_GEN_DIRNAME, OUTPUT_PLOT, FILENAME_SPECIES_GC_COLOR, FILENAME_SPECIES_GROUPS = sys.argv[1:]
+    SAM_DIRNAME, REF_GEN_DIRNAME, OUTPUT_PLOT, FILENAME_SPECIES_GC_COLOR = sys.argv[1:]
 
 
     # --- Initialize variables for the plot ---

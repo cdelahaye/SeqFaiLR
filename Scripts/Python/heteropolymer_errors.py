@@ -65,6 +65,33 @@ def get_groups(filename):
 
     return dictionary_group, dictionary_color
 
+def get_short_name(long_name):
+    L_name = long_name.replace("_", " ").split(" ")
+    L_name[0] = L_name[0][0] + "."
+    short_name = " ".join(L_name)
+    return short_name
+
+
+
+def build_group_per_species(filename):
+    """
+    If no group were defined by user, create N groups (1 for each of the N species)
+    """
+    dictionary_group = {}
+    dictionary_color = {}
+    file = open(filename, "r")
+    for line in file:
+        species_name, color, gc = line.rstrip().split("\t")
+        gc = float(gc)
+        species_name = get_short_name(species_name)
+        group_name = species_name
+        dictionary_group[species_name] = group_name
+        dictionary_color[group_name] = color
+        
+    file.close()
+
+    return dictionary_group, dictionary_color
+
 
 def generate_heteropolymer_pattern():
     """Generates a regular expression to find heteropolymers
@@ -200,8 +227,8 @@ def get_genomic_heteropolymer_distribution(group_name):
         ax.set_ylabel("Occurrences", fontweight="bold")
         plt.xticks([r + 3*BAR_WIDTH for r in range(len(L_labels))], L_labels)
         plt.ylim(1e2, 5*1e8)
-        ax.legend(ncol=5, title="Heteropolymer length", loc=1)
-        plt.savefig(OUTPUT_PLOT + f"heteropolymer_genomic_distribution_{group_name}.png")
+        ax.legend(ncol=6, title="Heteropolymer length", loc=1)
+        plt.savefig(OUTPUT_PLOT + f"heteropolymer_genomic_distribution_{group_name.replace(' ', '_')}.png")
         plt.close()
 
     # Save raw results in .txt file
@@ -423,7 +450,6 @@ def compute_results():
     # 1/ Save as plot
     width = 0.2
     L_labels = ['AC-CA', 'AG-GA', 'AT-TA', 'CG-GC', 'CT-TC', 'GT-TG'] # alphabetical sort
-#    L_labels = ['CT-TC', 'AT-TA', 'GT-TG', 'CG-GC', 'AC-CA', 'AG-GA']
 
     # Primary axis = abundance ; secondary axis = error rate
     abundance_x = np.arange(1, len(L_heteropolymers)+1, 1)
@@ -460,7 +486,7 @@ def compute_results():
         ax2.tick_params(which='minor', length=2)
 
         plt.legend(handles=L_patches)
-        plt.savefig(OUTPUT_PLOT + f"heteropolymer_abundance_error_rate_{group_name}.png")
+        plt.savefig(OUTPUT_PLOT + f"heteropolymer_abundance_error_rate_{group_name.replace(' ', '_')}.png")
         plt.close()
 
 
@@ -487,7 +513,7 @@ def compute_results():
     for group_name in L_groups:
         _, ax = plt.subplots()
         L_patches = []
-        color = dict_species_group_color[group_name]
+        #color = dict_species_group_color[group_name]
         L_to_plot = []
         if dict_diff_length_sequenced[group_name][MIN_HETEROPOLYMER_LENGTH] == {}: # skip if no data recorded yet
             continue
@@ -495,14 +521,9 @@ def compute_results():
             if dict_diff_length_sequenced[group_name][heteropolymer_length_genome] == {}:
                 break
             L_to_plot += [get_statistics(dict_diff_length_sequenced[group_name][heteropolymer_length_genome])]
-        boxprops = dict(linewidth=4)
         box = ax.bxp(L_to_plot, showfliers=False,
                      positions=np.arange(MIN_HETEROPOLYMER_LENGTH, MAX_HETEROPOLYMER_LENGTH+1, 2)[:len(L_to_plot)],
-                     patch_artist=True, widths=BOXPLOT_WIDTH, boxprops=boxprops)
-        for item in ['boxes', 'fliers', 'whiskers', 'caps']:
-            plt.setp(box[item], color=color)
-        for patch in box['boxes']:
-            patch.set(facecolor=color)
+                     patch_artist=True, widths=BOXPLOT_WIDTH) #, boxprops=boxprops)
         for item in ['medians']:
             plt.setp(box[item], color="black")
         # Plots expected distribution x = y
@@ -517,7 +538,7 @@ def compute_results():
                    labels=L_heteropolymer_lengths)
         plt.xlabel("Expected heteropolymer lengths (reference genome)")
         plt.ylabel("Sequenced heteropolymer lengths (reads)")
-        plt.savefig(OUTPUT_PLOT + f"difference_expected_sequenced_heteropolymer_length_{group_name}.png")
+        plt.savefig(OUTPUT_PLOT + f"difference_expected_sequenced_heteropolymer_length_{group_name.replace(' ', '_')}.png")
         plt.close()
 
 
@@ -558,8 +579,13 @@ if __name__ == "__main__":
     # Length of heteropolymers
     L_heteropolymer_lengths = list(np.arange(MIN_HETEROPOLYMER_LENGTH, MAX_HETEROPOLYMER_LENGTH, 2)) + [f"{MAX_HETEROPOLYMER_LENGTH}+"]
 
-    # Get groups of species
-    dict_species_group, dict_species_group_color = get_groups(FILE_SPECIES_GROUP)
+    # Group species:
+    #   - by user defined group (if exists)
+    if os.path.exists(FILE_SPECIES_GROUP):
+        dict_species_group, dict_species_group_color = get_groups(FILE_SPECIES_GROUP)
+    #   - else build artificial groups: one per species
+    else:
+        dict_species_group, dict_species_group_color = build_group_per_species(FILE_SPECIES_GC)
     L_groups = sorted(set(dict_species_group.values()))
 
     # Width of boxplot
@@ -614,7 +640,7 @@ if __name__ == "__main__":
         print("  ", species_name)
         aln_file = open(aln_path, "r")
 
-        group_name = dict_species_group[species_name]
+        group_name = dict_species_group[get_short_name(species_name)]
 
         # Get heteropolymer distribution from reference genome
         reference_genome_filename = REFERENCE_GENOME_DIRNAME + species_name + ".fasta"
@@ -644,10 +670,6 @@ if __name__ == "__main__":
             if tmp_progressing > progressing and tmp_progressing % 5 == 0:
                 progressing = tmp_progressing
                 display_progressing_bar(progressing, time.time())
-
-
-            if nb_aln_done > 100: ## TODO remove
-                break
 
 
             # Compute sequencing errors associated with genomic heteropolymers
