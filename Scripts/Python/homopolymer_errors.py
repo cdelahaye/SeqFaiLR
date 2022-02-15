@@ -50,7 +50,7 @@ def get_groups(filename):
     file = open(filename, "r")
     for line in file:
         group_name, species_name, color = line.rstrip().split("\t")
-        species_name = species_name.split(".")[0]
+        species_name = get_short_name(species_name)
         dictionary_group[species_name] = group_name
         dictionary_color[group_name] = color
     file.close()
@@ -58,11 +58,12 @@ def get_groups(filename):
     return dictionary_group, dictionary_color
 
 def get_short_name(long_name):
+    if len(long_name) <= 10:
+        return long_name
     L_name = long_name.replace("_", " ").split(" ")
     L_name[0] = L_name[0][0] + "."
     short_name = " ".join(L_name)
     return short_name
-
 
 
 def build_group_per_species(filename):
@@ -744,7 +745,11 @@ def compute_results():
 
     fig, ax = plt.subplots()
     L_patches = []
-    for i_grp, group_name in enumerate(L_ordered_species):
+    if "L_ordered_species" in globals():
+        to_enumerate = L_ordered_species
+    else:
+        to_enumerate = L_groups
+    for i_grp, group_name in enumerate(to_enumerate):
         color = dict_species_group_color[group_name]
         if dict_diff_length_sequenced[group_name][MIN_HOMOPOLYMER_LENGTH] == {}:
             position += offset
@@ -874,9 +879,11 @@ if __name__ == "__main__":
     # Group species:
     #   - by user defined group (if exists)
     if os.path.exists(FILE_SPECIES_GROUP):
+        print("Group exists") # TODO
         dict_species_group, dict_species_group_color = get_groups(FILE_SPECIES_GROUP)
     #   - else build artificial groups: one per species
     else:
+        print("No group") # TODO
         dict_species_group, dict_species_group_color, L_ordered_species = build_group_per_species(FILE_SPECIES_GC)
     L_groups = sorted(set(dict_species_group.values()))
 

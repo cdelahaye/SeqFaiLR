@@ -182,11 +182,12 @@ def gather_results_groups(dictionary_results_species, dictionary_groups):
     return dictionary
 
 def get_short_name(long_name):
+    if len(long_name) <= 10:
+        return long_name
     L_name = long_name.replace("_", " ").split(" ")
     L_name[0] = L_name[0][0] + "."
     short_name = " ".join(L_name)
     return short_name
-
 
 def write_results(dictionary, output_filename):
     """
@@ -278,7 +279,10 @@ if __name__ == "__main__":
 
     # List of error categories, and associated colors for plot
     L_error_types = ["Total", "Mismatch", "Insertion", "Deletion"]
-
+    
+    # Parse alignments to get error rates depending on GC content
+    #   the dictionary will store, for each species, the error rate depending on GC content of reads
+    dict_gc_error = get_error_rates_gc()
 
     # If groups have been defined, compute for groups
     if os.path.exists(FILE_SPECIES_GROUPS):
@@ -300,9 +304,7 @@ if __name__ == "__main__":
     # Otherwise, compute details for each species
     else:
         dict_species_gc_color, L_ordered_species = get_gc_color(FILE_SPECIES_GC)
-        # Parse alignments to get error rates depending on GC content
-        #   the dictionary will store, for each species, the error rate depending on GC content of reads
-        dict_gc_error = get_error_rates_gc()
+
 
         # write results in raw txt file
         write_results(dict_gc_error, "error_rate_gc_species.txt") # for each species
@@ -310,5 +312,4 @@ if __name__ == "__main__":
         # plot results
         plot_results(dict_gc_error, "error_rate_gc_species.png", # for each species, ordered according GC content
                      dict_species_gc_color, L_ordered_species, "Species")
-
 

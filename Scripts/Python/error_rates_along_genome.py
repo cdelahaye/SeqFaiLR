@@ -385,6 +385,7 @@ def compute_results():
             ax.set(xlabel='Relative position in reference genome (%)',
                    ylabel=error + ' error rate (%)')
     
+            # Reorder legend labels
             ax.legend(title="Species groups",
                       fontsize=6, title_fontsize=8,
                        bbox_to_anchor=(1, 1)) # place legend outside plot
@@ -434,13 +435,13 @@ def compute_results():
             plt.savefig(OUTPUT_PLOT + f"error_rates_along_genome_{error}.png")
             plt.close()
 
-
 def get_short_name(long_name):
+    if len(long_name) <= 10:
+        return long_name
     L_name = long_name.replace("_", " ").split(" ")
     L_name[0] = L_name[0][0] + "."
     short_name = " ".join(L_name)
     return short_name
-
 
 
 
@@ -505,7 +506,8 @@ if __name__ == "__main__":
 
         # - Compute results -
         compute_results()
-
+        
+        
     print("----")
     print(L_species)
 

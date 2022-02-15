@@ -62,11 +62,12 @@ def get_mean_quality(quality_str):
 
 
 def get_short_name(long_name):
+    if len(long_name) <= 10:
+        return long_name
     L_name = long_name.replace("_", " ").split(" ")
     L_name[0] = L_name[0][0] + "."
     short_name = " ".join(L_name)
     return short_name
-
 
 
 # --------------------------------------------------------------------------------------------------
