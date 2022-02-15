@@ -16,6 +16,8 @@ import glob
 import os
 import time
 import datetime
+import math
+import numpy as np
 import matplotlib.pyplot as plt
 
 
@@ -215,6 +217,11 @@ def parse_cigar(cigar: str, genome_position: int, dict_tmp: dict):
     for match in re.finditer(pattern, cigar):
         cigar_list += [match.group()]
 
+    for relative_position in range(0, 100):
+        if relative_position not in dict_tmp:
+            dict_tmp[relative_position] = [0, 0, 0, 0]
+
+
     # Updates dict_tmp
     position = genome_position
     for cigar_elt in cigar_list:
@@ -226,8 +233,8 @@ def parse_cigar(cigar: str, genome_position: int, dict_tmp: dict):
             relative_position = int(position / reference_genome_length * 100)
             if relative_position == 100:
                 relative_position = 99 # margin effect, very last base of genome
-            if relative_position not in dict_tmp:
-                dict_tmp[relative_position] = [0, 0, 0, 0]
+#            if relative_position not in dict_tmp:
+#                dict_tmp[relative_position] = [0, 0, 0, 0]
             if error_type == "=": # match
                 dict_tmp[relative_position][0] += 1
                 position += step_position
@@ -244,6 +251,34 @@ def parse_cigar(cigar: str, genome_position: int, dict_tmp: dict):
 
     return dict_tmp
 
+
+def sum_lists(list1, list2, nb_occ):
+    """
+    Sum values of list1 and list2
+    """
+    if len(list1) != len(list2):
+        print("ERROR: lists are not of same length")
+        exit(1)
+    new_list = [] #[list1[i]+list2[i] for i in range(len(list1))]
+    for i in range(len(list1)):
+        elt1, elt2 = list1[i], list2[i]
+        if math.isnan(elt1) and math.isnan(elt2):
+            new_list += [np.nan]
+        else:
+            new_value = 0
+            if not math.isnan(elt1):
+                new_value += elt1
+                nb_occ[i] += 1
+            if not math.isnan(elt2):
+                new_value += elt2
+                nb_occ[i] += 1
+            new_list += [new_value]
+        
+    return new_list, nb_occ
+
+
+
+
 def compute_results():
     """
     Computes error rates for each relative position, for the current species,
@@ -256,6 +291,12 @@ def compute_results():
     for position in dict_error_tmp:
         nb_match, nb_mismatch, nb_insertion, nb_deletion = dict_error_tmp[position]
         alignment_total_length = sum([nb_match, nb_mismatch, nb_insertion, nb_deletion])
+        if alignment_total_length == 0:
+            dict_error_rates_position["Mismatch"][position] += [np.nan]
+            dict_error_rates_position["Insertion"][position] += [np.nan]
+            dict_error_rates_position["Deletion"][position] += [np.nan]
+            dict_error_rates_position["Total"][position] += [np.nan]
+            continue
         mismatch_rate = nb_mismatch / alignment_total_length * 100
         insertion_rate = nb_insertion / alignment_total_length * 100
         deletion_rate = nb_deletion / alignment_total_length * 100
@@ -274,57 +315,124 @@ def compute_results():
         for position in sorted(dict_error_rates_position[error]):
             error_rate_list = dict_error_rates_position[error][position]
             for j, error_rate in enumerate(error_rate_list):
-                if j not in dictionary:
-                    dictionary[j] = []
-                dictionary[j] += [error_rate]
+                if j >= len(L_species):
+                    continue
+                species_name = L_species[j]
+                if species_name not in dictionary:
+                    dictionary[species_name] = []
+                dictionary[species_name] += [error_rate]
         list_dictionaries[i] = dictionary
     dict_mismatches, dict_insertions, dict_deletions, dict_total = list_dictionaries
+    
+    
+    # TEST ------
 
+    
+    # Plot results - if species are grouped
+    if os.path.exists(FILE_SPECIES_GROUPS):
+        
+        # Get group names and colors
+        dict_category_color = {}
+        dict_group_species = {}
+        color_file = open(FILE_SPECIES_GROUPS, "r")
+        for line in color_file:
+            group_name, species_name, color = line.rstrip().split("\t")
+            species_name = species_name.replace(" ", "_")
+            dict_group_species[species_name] = group_name
+            dict_category_color[group_name] = color
+        color_file.close()
+        
+        
+        # Re-arrange dictionnary before plotting results
+        for i in range(len(list_error_names)):
+            dictionary = list_dictionaries[i]
+            grouped_dictionary = {}
+            dict_nb_occ = {}
+            for species_name in L_species:
+                group_name = dict_group_species[species_name]
+                if group_name not in grouped_dictionary:
+                    grouped_dictionary[group_name] = dictionary[species_name]
+                    nb_occ = [1 if not math.isnan(elt) else 0 for elt in grouped_dictionary[group_name]]
+                    dict_nb_occ[group_name] = nb_occ
+                else:
+                    old_value = grouped_dictionary[group_name]
+                    to_add = dictionary[species_name]
+                    new_value, nb_occ = sum_lists(old_value, to_add, dict_nb_occ[group_name])
+                    dict_nb_occ[group_name] = nb_occ
+                    grouped_dictionary[group_name] = new_value
+                    
+            for group_name in dict_nb_occ:
+                nb_occ = dict_nb_occ[group_name]
+                value_sum = grouped_dictionary[group_name]
+                value_mean = [value_sum[i]/nb_occ[i] for i in range(len(value_sum))]
+                grouped_dictionary[group_name] = value_mean
+            list_dictionaries[i] = grouped_dictionary
+        
+        # Plot
 
+        for i in range(len(list_error_names)):
+            error = list_error_names[i]
+            dictionary = list_dictionaries[i]
+    
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            fig.set_dpi(300.0)
+            box = ax.get_position()
+            ax.set_position([0.1, 0.12, box.width*0.8, box.height])
+            for group_name in dictionary:
+                color = dict_category_color[group_name]
+                ax.plot(dictionary[group_name], color=color, label=group_name)
+            ax.set(xlabel='Relative position in reference genome (%)',
+                   ylabel=error + ' error rate (%)')
+    
+            ax.legend(title="Species groups",
+                      fontsize=6, title_fontsize=8,
+                       bbox_to_anchor=(1, 1)) # place legend outside plot
+            plt.savefig(OUTPUT_PLOT + f"error_rates_along_genome_{error}.png")
+            plt.close()
+    
+    # Plot results - if species are not grouped
+    else:
+        dict_category_color = {}
+        dict_gc_species = {}
+        color_file = open(FILENAME_SPECIES_GC_COLOR, "r")
+        for line in color_file:
+            species_name, color, gc = line.rstrip().split("\t")
+            species_name = species_name.replace(" ", "_")
+            gc = float(gc)
+            dict_category_color[species_name] = color
+            dict_gc_species[gc] = species_name
+        color_file.close()
+        list_ordered_species_gc = []
+        for gc in sorted(dict_gc_species):
+            list_ordered_species_gc += [dict_gc_species[gc]]
 
-    # Get color for each species
-    dict_species_color = {}
-    dict_gc_species = {}
-    color_file = open(FILENAME_SPECIES_GC_COLOR, "r")
-    for line in color_file:
-        species_name, color, gc = line.rstrip().split("\t")
-        species_name = species_name.replace(" ", "_")
-        gc = float(gc)
-        dict_species_color[species_name] = color
-        dict_gc_species[gc] = species_name
-    color_file.close()
-    list_ordered_species_gc = []
-    for gc in sorted(dict_gc_species):
-        list_ordered_species_gc += [dict_gc_species[gc]]
-
-
-    # Plot error rates for each error type
-    for i in range(len(list_error_names)):
-        error = list_error_names[i]
-        dictionary = list_dictionaries[i]
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        fig.set_dpi(300.0)
-        box = ax.get_position()
-        ax.set_position([0.1, 0.12, box.width*0.8, box.height])
-        for j, species_name in enumerate(L_species):
-            color = dict_species_color[species_name]
-            ax.plot(dictionary[j], color=color, label=species_name)
-        ax.set(xlabel='Relative position in reference genome (%)',
-               ylabel=error + ' error rate (%)')
-
-        # Reorder legend labels
-        handles, labels = ax.get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        ordered_label_list = [elt for elt in list_ordered_species_gc if elt in by_label]
-        ordered_label_values = [by_label[k] for k in ordered_label_list]
-        ordered_label_list_short_name = [get_short_name(elt) for elt in ordered_label_list]
-        ax.legend(ordered_label_values, ordered_label_list_short_name, title="Species",
-                  fontsize=6, title_fontsize=8,
-                   bbox_to_anchor=(1, 1)) # place legend outside plot
-        plt.savefig(OUTPUT_PLOT + f"error_rates_along_genome_{error}.png")
-        plt.close()
+        for i in range(len(list_error_names)):
+            error = list_error_names[i]
+            dictionary = list_dictionaries[i]
+    
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            fig.set_dpi(300.0)
+            box = ax.get_position()
+            ax.set_position([0.1, 0.12, box.width*0.8, box.height])
+            for species_name in L_species:
+                color = dict_category_color[species_name]
+                ax.plot(dictionary[species_name], color=color, label=species_name)
+            ax.set(xlabel='Relative position in reference genome (%)',
+                   ylabel=error + ' error rate (%)')
+    
+            # Reorder legend labels
+            handles, labels = ax.get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            ordered_label_list = [elt for elt in list_ordered_species_gc if elt in by_label]
+            ordered_label_values = [by_label[k] for k in ordered_label_list]
+            ordered_label_list_short_name = [get_short_name(elt) for elt in ordered_label_list]
+            ax.legend(ordered_label_values, ordered_label_list_short_name, title="Species",
+                      fontsize=6, title_fontsize=8,
+                       bbox_to_anchor=(1, 1)) # place legend outside plot
+            plt.savefig(OUTPUT_PLOT + f"error_rates_along_genome_{error}.png")
+            plt.close()
 
 
 def get_short_name(long_name):
@@ -343,11 +451,11 @@ if __name__ == "__main__":
 
 
     ## Parses arguments
-    NUMBER_EXPECTED_ARGUMENTS = 4
+    NUMBER_EXPECTED_ARGUMENTS = 5
     if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
         print(f"ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but {len(sys.argv)-1} given.")
         sys.exit(2)
-    SAM_DIRNAME, REF_GEN_DIRNAME, OUTPUT_PLOT, FILENAME_SPECIES_GC_COLOR = sys.argv[1:]
+    SAM_DIRNAME, REF_GEN_DIRNAME, OUTPUT_PLOT, FILENAME_SPECIES_GC_COLOR, FILE_SPECIES_GROUPS = sys.argv[1:]
 
 
     # --- Initialize variables for the plot ---
@@ -398,7 +506,11 @@ if __name__ == "__main__":
         # - Compute results -
         compute_results()
 
+    print("----")
+    print(L_species)
+
     compute_results()
+
 
 
 
