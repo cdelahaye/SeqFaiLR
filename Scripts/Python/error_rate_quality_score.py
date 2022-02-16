@@ -60,12 +60,13 @@ def get_color(filename):
 
 
 def get_short_name(long_name):
-    if len(long_name) <= 10:
-        return long_name
     L_name = long_name.replace("_", " ").split(" ")
+    if len(L_name) == 1:
+        return long name
     L_name[0] = L_name[0][0] + "."
     short_name = " ".join(L_name)
     return short_name
+
 
 def get_error_rate(genome, read):
     """ Computes error rate between a given alignment of a read against a genome
@@ -180,6 +181,7 @@ def plot_quality_error_for_reads():
     """
     Computes error rate depending on quality scores, at read level
     And plot results
+    In case species were not grouped
     """
 
     # File to save raw results
@@ -263,12 +265,119 @@ def plot_quality_error_for_reads():
     plt.ylabel("Error rates of reads (%)")
     plt.savefig(OUTPUT_PLOT + "error_rate_quality_score_reads.png")
     plt.close()
+    
+def plot_quality_error_for_reads_group():
+    """
+    Computes error rate depending on quality scores, at read level
+    And plot results
+    In case species were grouped
+    """
+    
+    # Get group-species matches
+    dict_species_group = {}
+    dict_group_color = {}
+    group_file = open(FILENAME_SPECIES_GROUPS, "r")
+    for line in group_file:
+        group_name, species_name, color = line.rstrip().split("\t")
+        species_name = species_name.replace(" ", "_")
+        dict_species_group[species_name] = group_name
+        dict_group_color[group_name] = color
+    group_file.close()
+    
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    fig.set_dpi(300.0)
+    box = ax.get_position()
+    ax.set_position([0.1, 0.1, box.width*0.8, box.height])
+    min_value, max_value = float("inf"), float("-inf")
+    dict_to_plot = {}
+    for aln_filename in os.listdir(ALN_EXPL_DIRNAME):
+        species_name = aln_filename.replace(".txt", "")
+        group_name = dict_species_group[species_name.replace(" ", "_")]
+        if group_name not in dict_to_plot:
+            dict_to_plot[group_name] = {}
+
+        # Parse alignments to get error rates
+        aln_file = open(ALN_EXPL_DIRNAME + aln_filename, "r")
+        read_file = open(RAW_READ_DIRNAME + species_name + ".fastq", "r")
+        dict_error_quality = {}
+        nb_aln_done = 0
+        print("  ", species_name, group_name)
+        while True:
+            header = aln_file.readline().rstrip()
+            if not header:
+                break
+            nb_aln_done += 1
+
+            genome = aln_file.readline().rstrip()
+            read = aln_file.readline().rstrip()
+
+            read_id = header.split(" ; ")[0].split("=")[1]
+            soft_clips = ast.literal_eval(header.split(" ; ")[-1].split("=")[1])
+            error_rate = get_error_rate(genome, read)
+            quality, read_file = get_quality_read(species_name, read_file, read_id, soft_clips)
+            if quality not in dict_error_quality:
+                dict_error_quality[quality] = [0, 0]
+            dict_error_quality[quality][0] += error_rate
+            dict_error_quality[quality][1] += 1
+
+            if nb_aln_done > MAX_ALN_NB:
+                break
+
+        read_file.close()
+        aln_file.close()
+
+        list_qualities, list_error_rates = [], []
+        for quality in sorted(dict_error_quality):
+            sum_error_rates, occurrences = dict_error_quality[quality]
+            if occurrences < MIN_OCC_READ:
+                continue
+            error_rate = sum_error_rates / occurrences
+            if quality not in dict_to_plot[group_name]:
+                dict_to_plot[group_name][quality] = []
+            dict_to_plot[group_name][quality] += [error_rate]
+            list_qualities += [quality]
+            list_error_rates += [error_rate]
+
+        if len(list_qualities) == 0:
+            print("No data kept. Please consider lower err_qual_min_occ_read value in seqfailr main file.")
+            continue
+        if min(list_qualities) < min_value:
+            min_value = min(list_qualities)
+        if max(list_qualities) > max_value:
+            max_value = max(list_qualities)
+
+    output_raw = open(OUTPUT_RAW + "error_rate_quality_score_reads.txt", "w")
+    output_raw.write("Group_name\tMean quality score reads\tMean error rate reads\n")
+    for group_name in dict_to_plot:
+        list_qualities, list_error_rates = [], []
+        for quality in sorted(dict_to_plot[group_name]):
+            list_qualities += [quality]
+            list_error_rates += [np.mean(dict_to_plot[group_name][quality])]
+        plt.plot(list_qualities, list_error_rates, label=group_name, color=dict_group_color[group_name])
+    
+    output_raw.write(f"{group_name}\t{list_qualities}\t{list_error_rates}\n")
+    output_raw.close()
+    
+    ax.legend(title="Groups", bbox_to_anchor=(1.35,1))
+    
+
+    # Theoretical Phred score: Q = -10 log10(P) ; P = 10**(-Q/10)
+    L_val_Q = np.arange(min_value, max_value, 0.5)
+    L_val_P = [10**(-q/10) for q in L_val_Q]
+    plt.plot(L_val_Q, np.asarray(L_val_P) * 100, "--", color="k")
+    plt.xlabel("Mean quality score of reads")
+    plt.ylabel("Error rates of reads (%)")
+    plt.savefig(OUTPUT_PLOT + "error_rate_quality_score_reads.png")
+    plt.close()
 
 
 def plot_quality_error_for_read_windows():
     """
     Computes error rate depending on quality scores, for WINDOW_LENGTH-bases windows
     And plot results
+    In case species were not grouped
     """
 
     # file to save raw results
@@ -349,6 +458,113 @@ def plot_quality_error_for_read_windows():
     plt.savefig(OUTPUT_PLOT + f"error_rate_quality_score_reads_{WINDOW_LENGTH}bases_windows.png")
 
     plt.close()
+    
+    
+    
+def plot_quality_error_for_read_windows_group():
+    """
+    Computes error rate depending on quality scores, for WINDOW_LENGTH-bases windows
+    And plot results
+    In case species were grouped
+    """
+
+        
+    # Get group-species matches
+    dict_species_group = {}
+    dict_group_color = {}
+    group_file = open(FILENAME_SPECIES_GROUPS, "r")
+    for line in group_file:
+        group_name, species_name, color = line.rstrip().split("\t")
+        species_name = species_name.replace(" ", "_")
+        dict_species_group[species_name] = group_name
+        dict_group_color[group_name] = color
+    group_file.close()
+    
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    fig.set_dpi(300.0)
+    box = ax.get_position()
+    ax.set_position([0.1, 0.1, box.width*0.8, box.height])
+    min_value, max_value = float("inf"), float("-inf")
+    dict_to_plot = {}   
+
+    for aln_filename in os.listdir(ALN_EXPL_DIRNAME):
+        species_name = aln_filename.replace(".txt", "")
+        group_name = dict_species_group[species_name.replace(" ", "_")]
+        if group_name not in dict_to_plot:
+            dict_to_plot[group_name] = {}
+        color = dict_group_color[group_name]
+        print("  ", species_name, group_name)
+
+        aln_file = open(ALN_EXPL_DIRNAME + aln_filename, "r")
+        read_file = open(RAW_READ_DIRNAME + species_name + ".fastq", "r")
+        dict_error_quality = {}
+        nb_aln_done = 0
+        while True:
+            header = aln_file.readline().rstrip()
+            if not header:
+                break
+            nb_aln_done += 1
+            if nb_aln_done == MAX_ALN_NB: # limited to MAX_ALN_NB alignments to limit computing time
+                break
+
+            genome = aln_file.readline().rstrip() # genome
+            read = aln_file.readline().rstrip() # read
+            read_id = header.split(" ; ")[0].split("=")[1]
+            soft_clips = ast.literal_eval(header.split(" ; ")[-1].split("=")[1])
+            read_file = compute_err_rate_quality_window(dict_error_quality, species_name,
+                                                        genome, read, read_file,
+                                                        read_id, soft_clips)
+        read_file.close()
+        aln_file.close()
+
+        # Plot
+        list_qualities, list_error_rates = [], []
+        for quality in sorted(dict_error_quality):
+            sum_error_rates, occurrences = dict_error_quality[quality]
+            if occurrences < MIN_OCC_WINDOW:
+                continue
+            error_rate = sum_error_rates / occurrences
+            if quality not in dict_to_plot[group_name]:
+                dict_to_plot[group_name][quality] = []
+            dict_to_plot[group_name][quality] += [error_rate]
+            list_qualities += [quality]
+            list_error_rates += [error_rate]
+
+        if len(list_qualities) == 0:
+            continue
+        if min(list_qualities) < min_value:
+            min_value = min(list_qualities)
+        if max(list_qualities) > max_value:
+            max_value = max(list_qualities)
+
+
+    output_raw = open(OUTPUT_RAW + f"error_rate_quality_score_reads_{WINDOW_LENGTH}bases_windows.txt", "w")
+    output_raw.write("Group_name\tMean quality score reads\tMean error rate reads\n")
+    for group_name in dict_to_plot:
+        list_qualities, list_error_rates = [], []
+        for quality in sorted(dict_to_plot[group_name]):
+            list_qualities += [quality]
+            list_error_rates += [np.mean(dict_to_plot[group_name][quality])]
+        plt.plot(list_qualities, list_error_rates, label=group_name, color=dict_group_color[group_name])
+    
+    output_raw.write(f"{group_name}\t{list_qualities}\t{list_error_rates}\n")
+    output_raw.close()
+
+
+    ax.legend(title="Species", bbox_to_anchor=(1.35,1))
+
+    # Theoretical Phred score: Q = -10 log10(P) ; P = 10**(-Q/10)
+    L_val_Q = np.arange(min_value, max_value, 0.5)
+    L_val_P = [10**(-q/10) for q in L_val_Q]
+    plt.plot(L_val_Q, np.asarray(L_val_P) * 100, "--", color="k")
+    plt.xlabel("Quality score")
+    plt.ylabel("Error rates (%)")
+
+    plt.savefig(OUTPUT_PLOT + f"error_rate_quality_score_reads_{WINDOW_LENGTH}bases_windows.png")
+
+    plt.close()
 
 
 # --------------------------------------------------------------------------------------------------
@@ -357,11 +573,11 @@ def plot_quality_error_for_read_windows():
 if __name__ == "__main__":
 
     # Parses arguments
-    NUMBER_EXPECTED_ARGUMENTS = 9
+    NUMBER_EXPECTED_ARGUMENTS = 10
     if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
         print(f"   ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but {len(sys.argv)-1} given.")
         sys.exit(2)
-    ALN_EXPL_DIRNAME, RAW_READ_DIRNAME, OUTPUT_RAW, OUTPUT_PLOT, FILENAME_SPECIES_GC_COLOR, WINDOW_LENGTH, MAX_ALN_NB, MIN_OCC_READ, MIN_OCC_WINDOW = sys.argv[1:]
+    ALN_EXPL_DIRNAME, RAW_READ_DIRNAME, OUTPUT_RAW, OUTPUT_PLOT, FILENAME_SPECIES_GC_COLOR, FILENAME_SPECIES_GROUPS, WINDOW_LENGTH, MAX_ALN_NB, MIN_OCC_READ, MIN_OCC_WINDOW = sys.argv[1:]
     WINDOW_LENGTH = int(WINDOW_LENGTH)
     MAX_ALN_NB = int(MAX_ALN_NB)
     MIN_OCC_READ = int(MIN_OCC_READ)
@@ -378,7 +594,10 @@ if __name__ == "__main__":
     # --- 1/ Error rate depending on quality score, at read level ---
     print("   - Computes error rate depending on quality scores, at read level")
     print(f"      A minimum occurrence number ({MIN_OCC_READ}) is required")
-    plot_quality_error_for_reads()
+    if os.path.exists(FILENAME_SPECIES_GROUPS):
+        plot_quality_error_for_reads_group()
+    else:
+        plot_quality_error_for_reads()
 
 
     # --- 2/ Error rate depending on quality score, for WINDOW_LENGTH-bases windows scale
@@ -388,4 +607,8 @@ if __name__ == "__main__":
     print(f"      A minimum occurrence number ({MIN_OCC_WINDOW}) is required")
     print(f"     Warning: limit to max {MAX_ALN_NB} alignments per species = enough to get relevant data" +
           " and limiting running time of the script")
-    plot_quality_error_for_read_windows()
+    if os.path.exists(FILENAME_SPECIES_GROUPS):
+        plot_quality_error_for_read_windows_group()
+    else:
+        plot_quality_error_for_read_windows()
+
