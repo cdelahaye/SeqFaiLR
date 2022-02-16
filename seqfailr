@@ -26,7 +26,7 @@ err_gc_min_occ_to_plot=100
 # - - - Homopolymers - - -
 homopolymer_min_length=2
 homopolymer_max_length=12
-homopolymer_nb_max_aln=200
+homopolymer_nb_max_aln=-1
 
 # - - - Heteropolymers - - -
 heteropolymer_min_length=4
