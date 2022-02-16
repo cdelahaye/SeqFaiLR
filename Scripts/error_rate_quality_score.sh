@@ -11,6 +11,7 @@ raw_read_dir="./Data/Raw_reads/" # input data: directory containing fastq files
 output_graph_dir="./Output/Error_rate_quality_score/" # output directory: graphics
 output_raw_dir="./Analysis/Error_rate_quality_score/" # output directory where raw results are stored
 file_color_gc_species="./Data/species_color_GC.txt" # file containing GC content of each species, and a dedicated color for plots
+file_species_groups="./Data/species_groups.txt" # file containing species groups
 
 window_length=$1
 err_qual_max_aln_nb=$2
@@ -33,7 +34,7 @@ fi
 
 
 # Runs the script
-python3 -u ./Scripts/Python/error_rate_quality_score.py $aln_expl_dir $raw_read_dir $output_raw_dir $output_graph_dir $file_color_gc_species $window_length $err_qual_max_aln_nb $err_qual_min_occ_read $err_qual_min_occ_window
+python3 -u ./Scripts/Python/error_rate_quality_score.py $aln_expl_dir $raw_read_dir $output_raw_dir $output_graph_dir $file_color_gc_species $file_species_groups $window_length $err_qual_max_aln_nb $err_qual_min_occ_read $err_qual_min_occ_window
 
 echo "Done."
 echo "---"

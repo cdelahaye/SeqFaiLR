@@ -42,4 +42,3 @@ python3 -u ./Scripts/Python/error_rates_along_genome.py $sam_dir $ref_gen_dir $o
 echo ""
 echo "Done."
 echo "---"
-

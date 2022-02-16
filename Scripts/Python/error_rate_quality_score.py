@@ -215,7 +215,7 @@ def plot_quality_error_for_reads():
             read = aln_file.readline().rstrip()
 
             read_id = header.split(" ; ")[0].split("=")[1]
-            soft_clips = ast.literal_eval(header.split(" ; ")[-1].split("=")[1])
+            soft_clips = ast.literal_eval(header.split(" ; ")[3].split("=")[1])
             error_rate = get_error_rate(genome, read)
             quality, read_file = get_quality_read(species_name, read_file, read_id, soft_clips)
             if quality not in dict_error_quality:
@@ -265,14 +265,14 @@ def plot_quality_error_for_reads():
     plt.ylabel("Error rates of reads (%)")
     plt.savefig(OUTPUT_PLOT + "error_rate_quality_score_reads.png")
     plt.close()
-    
+
 def plot_quality_error_for_reads_group():
     """
     Computes error rate depending on quality scores, at read level
     And plot results
     In case species were grouped
     """
-    
+
     # Get group-species matches
     dict_species_group = {}
     dict_group_color = {}
@@ -283,7 +283,7 @@ def plot_quality_error_for_reads_group():
         dict_species_group[species_name] = group_name
         dict_group_color[group_name] = color
     group_file.close()
-    
+
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -314,7 +314,7 @@ def plot_quality_error_for_reads_group():
             read = aln_file.readline().rstrip()
 
             read_id = header.split(" ; ")[0].split("=")[1]
-            soft_clips = ast.literal_eval(header.split(" ; ")[-1].split("=")[1])
+            soft_clips = ast.literal_eval(header.split(" ; ")[3].split("=")[1])
             error_rate = get_error_rate(genome, read)
             quality, read_file = get_quality_read(species_name, read_file, read_id, soft_clips)
             if quality not in dict_error_quality:
@@ -356,12 +356,12 @@ def plot_quality_error_for_reads_group():
             list_qualities += [quality]
             list_error_rates += [np.mean(dict_to_plot[group_name][quality])]
         plt.plot(list_qualities, list_error_rates, label=group_name, color=dict_group_color[group_name])
-    
+
     output_raw.write(f"{group_name}\t{list_qualities}\t{list_error_rates}\n")
     output_raw.close()
-    
+
     ax.legend(title="Groups", bbox_to_anchor=(1.35,1))
-    
+
 
     # Theoretical Phred score: Q = -10 log10(P) ; P = 10**(-Q/10)
     L_val_Q = np.arange(min_value, max_value, 0.5)
@@ -411,7 +411,7 @@ def plot_quality_error_for_read_windows():
             genome = aln_file.readline().rstrip() # genome
             read = aln_file.readline().rstrip() # read
             read_id = header.split(" ; ")[0].split("=")[1]
-            soft_clips = ast.literal_eval(header.split(" ; ")[-1].split("=")[1])
+            soft_clips = ast.literal_eval(header.split(" ; ")[3].split("=")[1])
             read_file = compute_err_rate_quality_window(dict_error_quality, species_name,
                                                         genome, read, read_file,
                                                         read_id, soft_clips)
@@ -458,9 +458,9 @@ def plot_quality_error_for_read_windows():
     plt.savefig(OUTPUT_PLOT + f"error_rate_quality_score_reads_{WINDOW_LENGTH}bases_windows.png")
 
     plt.close()
-    
-    
-    
+
+
+
 def plot_quality_error_for_read_windows_group():
     """
     Computes error rate depending on quality scores, for WINDOW_LENGTH-bases windows
@@ -468,7 +468,7 @@ def plot_quality_error_for_read_windows_group():
     In case species were grouped
     """
 
-        
+
     # Get group-species matches
     dict_species_group = {}
     dict_group_color = {}
@@ -479,7 +479,7 @@ def plot_quality_error_for_read_windows_group():
         dict_species_group[species_name] = group_name
         dict_group_color[group_name] = color
     group_file.close()
-    
+
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -487,7 +487,7 @@ def plot_quality_error_for_read_windows_group():
     box = ax.get_position()
     ax.set_position([0.1, 0.1, box.width*0.8, box.height])
     min_value, max_value = float("inf"), float("-inf")
-    dict_to_plot = {}   
+    dict_to_plot = {}
 
     for aln_filename in os.listdir(ALN_EXPL_DIRNAME):
         species_name = aln_filename.replace(".txt", "")
@@ -512,7 +512,7 @@ def plot_quality_error_for_read_windows_group():
             genome = aln_file.readline().rstrip() # genome
             read = aln_file.readline().rstrip() # read
             read_id = header.split(" ; ")[0].split("=")[1]
-            soft_clips = ast.literal_eval(header.split(" ; ")[-1].split("=")[1])
+            soft_clips = ast.literal_eval(header.split(" ; ")[3].split("=")[1])
             read_file = compute_err_rate_quality_window(dict_error_quality, species_name,
                                                         genome, read, read_file,
                                                         read_id, soft_clips)
@@ -548,7 +548,7 @@ def plot_quality_error_for_read_windows_group():
             list_qualities += [quality]
             list_error_rates += [np.mean(dict_to_plot[group_name][quality])]
         plt.plot(list_qualities, list_error_rates, label=group_name, color=dict_group_color[group_name])
-    
+
     output_raw.write(f"{group_name}\t{list_qualities}\t{list_error_rates}\n")
     output_raw.close()
 

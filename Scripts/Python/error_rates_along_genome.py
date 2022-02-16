@@ -508,8 +508,6 @@ if __name__ == "__main__":
         compute_results()
         
         
-    print("----")
-    print(L_species)
 
     compute_results()
 
