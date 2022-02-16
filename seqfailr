@@ -8,7 +8,7 @@
 # - - - Error rate depending on quality scores - - -
 err_qual_window_length=100
 err_qual_max_aln_nb=200
-err_qual_min_occ_read=10
+err_qual_min_occ_read=2 #10
 err_qual_min_occ_window=1000
 
 # - - - Quality scores along raw reads - - -
@@ -17,7 +17,7 @@ qual_read_end_length=100
 # - - - Relative coverage depending on GC content of reads - - -
 cov_gc_window_size=100
 cov_gc_min_bases=100
-cov_gc_max_bases=100000
+cov_gc_max_bases=10000
 
 # - - - Error rate depending on GC content of reads - - -
 err_gc_nb_max_aln=500
@@ -188,3 +188,4 @@ case $mode in
      exit 1
      ;;
 esac
+

@@ -156,6 +156,8 @@ if __name__ == "__main__":
 
     # Initialize plot and main dictionary that will store data to plot
     dict_species_gc_coverage = {} # key = species name ; value = [gc_content, coverage]
+    if os.path.exists(FILE_SPECIES_GROUPS):
+        dict_species_gc_coverage_grouped_tmp = {} # same but temporary for grouped data
     fig = plt.figure()
     ax = fig.add_subplot(111)
     fig.set_dpi(300.0)
@@ -206,6 +208,7 @@ if __name__ == "__main__":
                 pos_in_genome += step_position
         file.close()
 
+
         for i in range(max(dict_coverage_of_genome.keys())):
             if i not in dict_coverage_of_genome:
                 dict_coverage_of_genome[i] = 0
@@ -225,23 +228,25 @@ if __name__ == "__main__":
             file.close()
 
             dict_GC_coverage = {}
-
+            nb_skip = 0
             for i in range(len(genome)-WINDOW_SIZE+1):
                 genome_part = genome[i: i+WINDOW_SIZE]
                 gc_content = get_gc_content(genome_part)
                 if gc_content == -1: # means that there are only "N" bases, ignore it
+                    nb_skip += 1
                     continue
                 coverage = sum([dict_coverage_of_genome[i] for i in range(i, i+WINDOW_SIZE)]) / WINDOW_SIZE
-
+                if coverage == 0: # means that genome is not covered in this part, does not provide information
+                    nb_skip += 1
                 if gc_content not in dict_GC_coverage:
                     dict_GC_coverage[gc_content] = []
                 dict_GC_coverage[gc_content] += [coverage]
 
-                if i > NB_MAX_BASES:
+
+                if i-nb_skip > NB_MAX_BASES:
                     break
 
             break
-
         expected_coverage = np.mean([np.mean(elt) for elt in dict_GC_coverage.values()])
 
         # Plot result
@@ -259,8 +264,19 @@ if __name__ == "__main__":
 
         dict_species_gc_coverage[species_short_name] = [list_GC, list_mean_coverage]
 
+        # Get results for grouped data
+        if os.path.exists(FILE_SPECIES_GROUPS):
+
+            list_GC = []
+            list_mean_coverage = []
+            for gc_content in sorted(dict_GC_coverage):
+                L_coverage = dict_GC_coverage[gc_content]
+                list_GC += [gc_content]
+                list_mean_coverage += [np.mean(L_coverage)/expected_coverage]
+            dict_species_gc_coverage_grouped_tmp[species_short_name] = [list_GC, list_mean_coverage]
+
         # Write
-        output.write(species_name + "(GC then coverage)\n")
+        output.write(species_name + " (GC then coverage)\n")
         output.write("\t".join(map(str, list_GC)) + "\n")
         output.write("\t".join(map(str, list_mean_coverage)) + "\n\n")
 
@@ -297,18 +313,23 @@ if __name__ == "__main__":
     #  (only if groups were defined by user)
     if not os.path.exists(FILE_SPECIES_GROUPS):
         sys.exit(0)
+
+    output = open(OUTPUT_RAW + "relative_coverage_gc_content_grouped.txt", "w")
     dict_species_group, dict_color_group = get_species_group(FILE_SPECIES_GROUPS)
     fig = plt.figure()
     ax = fig.add_subplot(111)
     fig.set_dpi(300.0)
     box = ax.get_position()
     ax.set_position([0.1, 0.1, box.width*0.8, box.height])
-    dict_species_gc_coverage_grouped = merge_results_groups(dict_species_gc_coverage,
+    dict_species_gc_coverage_grouped = merge_results_groups(dict_species_gc_coverage_grouped_tmp,
                                                             dict_species_group)
     for group_name in dict_species_gc_coverage_grouped:
         list_GC, list_mean_coverage = dict_species_gc_coverage_grouped[group_name]
         plt.plot(list_GC, list_mean_coverage, label=group_name,
                 color=dict_color_group[group_name])
+        output.write(group_name + " (GC then coverage)\n")
+        output.write("\t".join(map(str, list_GC)) + "\n")
+        output.write("\t".join(map(str, list_mean_coverage)) + "\n\n")
     # theoretical unbiased coverage
     unbiased_x = list(np.arange(0, 101))
     unbiased_y = [1] * len(unbiased_x)
@@ -322,6 +343,6 @@ if __name__ == "__main__":
     # save
     plt.savefig(OUTPUT_PLOT + "relative_coverage_gc_content_grouped.png")
     plt.close()
-
+    output.close()
 
 
