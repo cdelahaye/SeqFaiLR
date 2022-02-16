@@ -62,7 +62,7 @@ def get_color(filename):
 def get_short_name(long_name):
     L_name = long_name.replace("_", " ").split(" ")
     if len(L_name) == 1:
-        return long name
+        return long_name
     L_name[0] = L_name[0][0] + "."
     short_name = " ".join(L_name)
     return short_name
