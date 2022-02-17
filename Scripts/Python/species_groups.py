@@ -31,32 +31,28 @@ except ImportError:
 if __name__ == "__main__":
 
     # Parse arguments
-    NUMBER_EXPECTED_ARGUMENTS = 2
+    NUMBER_EXPECTED_ARGUMENTS = 3
     if len(sys.argv) != NUMBER_EXPECTED_ARGUMENTS + 1:
         print(f"ERROR: Wrong number of arguments: {NUMBER_EXPECTED_ARGUMENTS} expected but "
               + f"{len(sys.argv)-1} given.")
         sys.exit(2)
     RAW_READ_DIR = sys.argv[1]
     OUTPUT_FILENAME = sys.argv[2]
+    GROUP_MODE = sys.argv[3]
 
     dict_group_species = {}
 
-    # Ask if want to group all or group nothing
-    print("Do you want to group species on plots?")
-    print("  - If you want to group all species together (i.e. merge them all), type ALL")
-    print("  - If you do not want to group species (i.e. keep species separated), type NO")
-    print("  - If you want to create multiple groups, type anything else!")
-    do_group_all_none = input("").upper()
+    do_group_all_none = GROUP_MODE.upper()
 
     if do_group_all_none == "ALL":
-        print(" Okay, I'll merge everything!")
+        print(" Species will all be merged.")
         group_name = "All data"
         dict_group_species[group_name] = []
     elif do_group_all_none == "NO":
-        print(" Okay, I wont merge anything!")
+        print(" Species will not be grouped.")
         sys.exit(0)
     else:
-        print(" Okay, now tell me more about it!")
+        print(" Custom grouping of species:")
     print("")
 
 

@@ -14,6 +14,8 @@ raw_read_dir="./Data/Raw_reads"
 output_groups="./Data/species_groups.txt" # output file (groupID ; species) space separated
 output_colors="./Data/species_color_GC.txt" # output file (species name ; color ; GC content of genome in %)
 
+group_mode=$1
+
 mkdir -p ./logs # create directory for log files
 
 # --- --- ---
@@ -84,7 +86,7 @@ echo "Look at the organization of the species' folders"
 if [ -f "$output_groups" ]; then
   echo "  File $output_groups already exist, do not compute it again (or remove it first)"
 else
-  python3 -u ./Scripts/Python/species_groups.py $raw_read_dir $output_groups
+  python3 -u ./Scripts/Python/species_groups.py $raw_read_dir $output_groups $group_mode
   if [ $? -eq 0 ]; then
     echo "Done."
   else
