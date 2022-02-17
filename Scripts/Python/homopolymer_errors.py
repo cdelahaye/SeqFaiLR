@@ -852,12 +852,12 @@ if __name__ == "__main__":
 
     if NB_MAX_ALN == -1:
         NB_MAX_ALN = float("inf")
-        print(f"\tCompute all alignments per species.")
-        print(f"\tYou can set a maximum number of alignments computed per species by modifying the 'homopolymer_nb_max_aln' argument in seqfailr file to speed up computations.")
+        print(f"  Compute all alignments per species.")
+        print(f"  You can set a maximum number of alignments computed per species by modifying the 'homopolymer_nb_max_aln' argument in seqfailr file to speed up computations.")
 
     else:
-        print(f"\tCompute a maximum of {NB_MAX_ALN} alignments per species, in order to speed up computation.")
-        print(f"\tSet 'homopolymer_nb_max_aln=-1' argument in seqfailr file to compute all alignments.")
+        print(f"  Compute a maximum of {NB_MAX_ALN} alignments per species, in order to speed up computation.")
+        print(f"  Set 'homopolymer_nb_max_aln=-1' argument in seqfailr file to compute all alignments.")
 
     # --- Parameters ---
 
@@ -979,13 +979,13 @@ if __name__ == "__main__":
             read_aln = aln_file.readline().replace("\n", "")
 
             chromosome = header_aln.split(" ; ")[4]
+            pos_in_genome = int(header_aln.split(" ; ")[2].split("=")[-1])
 
             nb_aln_done += 1
             tmp_progressing = int(nb_aln_done / NB_TOT_ALN * 100)
             if tmp_progressing > progressing and tmp_progressing % 5 == 0:
                 progressing = tmp_progressing
                 display_progressing_bar(progressing, time.time())
-                compute_results()
 
             if nb_aln_done >= NB_MAX_ALN: # Limit number of alignments to speed up computation
                 compute_results()
@@ -1044,7 +1044,16 @@ if __name__ == "__main__":
 
 
                 # 7/ Create a BED file with positions of homopolymers
-                bed.write(f"{chromosome}\t{start_genome-1}\t{end_genome-1}\n")
+                if "reverse" in header_aln:
+                    strand = "-"
+                else:
+                    strand = "+"
+                nb_gap = genome_aln[:start_genome].count("-")
+                start_genome -= nb_gap
+                if isinstance(homopolymer_genome_length, str):
+                    homopolymer_genome_length = int(homopolymer_genome_length[:-1])
+                end_genome = start_genome + homopolymer_genome_length
+                bed.write(f"{chromosome}\t{pos_in_genome+start_genome-1}\t{pos_in_genome+end_genome-1}\t.\t.\t{strand}\n")
 
 
 
