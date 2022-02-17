@@ -242,7 +242,7 @@ def plot_substitution_errors(dictionary, dictionary_groups):
             plt.plot(dict_positions[group_name], dictionary[group_name], "o", ms=4, 
                      color=color, label=group_name,
              mec="black", mew=1)
-        plt.legend(title="Species groups:", ncol=2)
+        plt.legend(title="Species:", ncol=2)
 
     plt.xticks(ticks=L_label_positions, labels=list_labels)
     plt.xlim(-1, position)

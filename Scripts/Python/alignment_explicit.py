@@ -239,9 +239,8 @@ def parse_cigar(cigar: str, read: str, pos_in_g: int):
           and soft / hard clips (strings of integers).
     read: str
         Read sequence that may have to be shorten because of soft/hard clips
-    pos_in_g: str
+    pos_in_g: int
         Initial position in genome where the read have been mapped initially
-        This number can be modified due to soft clips
     Returns
     -------
     cigar_list: [str]
@@ -263,9 +262,6 @@ def parse_cigar(cigar: str, read: str, pos_in_g: int):
     #  so we just remove hard clip elements from CIGAR field
     #  also modify position in genome
     if "H" in cigar_list[0]:
-        hard_clip = cigar_list[0]
-        nb_clipped_start = int(hard_clip[:-1])
-        pos_in_g += nb_clipped_start
         cigar_list = cigar_list[1:]
     if "H" in cigar_list[-1]:
         cigar_list = cigar_list[:-1]
@@ -278,7 +274,6 @@ def parse_cigar(cigar: str, read: str, pos_in_g: int):
         cigar_list = cigar_list[1:]
         nb_clipped_start = int(soft_clip[:-1])
         read = read[nb_clipped_start:]
-        pos_in_g += nb_clipped_start
     if "S" in cigar_list[-1]:
         soft_clip = cigar_list[-1]
         cigar_list = cigar_list[:-1]

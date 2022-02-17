@@ -243,14 +243,11 @@ if __name__ == "__main__":
                 dict_GC_coverage[gc_content] += [coverage]
 
 
-                if i % 10000 == 0:
-                    print(i, nb_skip, i-nb_skip, NB_MAX_BASES)
                 if i-nb_skip > NB_MAX_BASES:
                     break
-                
             break
         expected_coverage = np.mean([np.mean(elt) for elt in dict_GC_coverage.values()])
-        
+
         # Plot result
         list_GC = []
         list_mean_coverage = []
@@ -323,13 +320,8 @@ if __name__ == "__main__":
     fig.set_dpi(300.0)
     box = ax.get_position()
     ax.set_position([0.1, 0.1, box.width*0.8, box.height])
-    print(dict_species_gc_coverage_grouped_tmp)
-    print("---")
-    print(dict_species_group)
-    print("--")
     dict_species_gc_coverage_grouped = merge_results_groups(dict_species_gc_coverage_grouped_tmp,
                                                             dict_species_group)
-    print(dict_species_gc_coverage_grouped)
     for group_name in dict_species_gc_coverage_grouped:
         list_GC, list_mean_coverage = dict_species_gc_coverage_grouped[group_name]
         plt.plot(list_GC, list_mean_coverage, label=group_name,

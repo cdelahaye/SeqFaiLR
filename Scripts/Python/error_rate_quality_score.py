@@ -356,8 +356,7 @@ def plot_quality_error_for_reads_group():
             list_qualities += [quality]
             list_error_rates += [np.mean(dict_to_plot[group_name][quality])]
         plt.plot(list_qualities, list_error_rates, label=group_name, color=dict_group_color[group_name])
-
-    output_raw.write(f"{group_name}\t{list_qualities}\t{list_error_rates}\n")
+        output_raw.write(f"{group_name}\t{list_qualities}\t{list_error_rates}\n")
     output_raw.close()
 
     ax.legend(title="Groups", bbox_to_anchor=(1.35,1))
@@ -548,8 +547,7 @@ def plot_quality_error_for_read_windows_group():
             list_qualities += [quality]
             list_error_rates += [np.mean(dict_to_plot[group_name][quality])]
         plt.plot(list_qualities, list_error_rates, label=group_name, color=dict_group_color[group_name])
-
-    output_raw.write(f"{group_name}\t{list_qualities}\t{list_error_rates}\n")
+        output_raw.write(f"{group_name}\t{list_qualities}\t{list_error_rates}\n")
     output_raw.close()
 
 
