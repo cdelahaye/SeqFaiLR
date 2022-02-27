@@ -499,7 +499,8 @@ def compute_results():
         i_row, i_column = 0, 0
         fig = plt.figure()
         for length in dict_error_length[group_name]:
-
+            if sum(dict_error_length[group_name][length]) == 0:
+                continue
             ax = plt.subplot2grid((nb_max_row, nb_max_column), (i_row, i_column))
             ax.pie(dict_error_length[group_name][length],
                    colors=L_color, autopct='%1.0f%%',
