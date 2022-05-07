@@ -142,19 +142,16 @@ esac
 
 
 # Some scripts are written in Python, the following lines ensures python is sourced, and of compatible version
-python_version=$(python3 -V 2>&1 | grep -Po '(?<=Python )(.+)')
-if [[ -z "$python_version" ]]
-then
-    echo "ERROR: No version of python could be found." >&2
-    exit 1
+python_version=$(python3 -V 2>&1)
+if [ ! $? -eq 0 ]; then
+  echo "ERROR: No version of python3 could be found."
+  exit 1
 fi
-python_parsed_version=$(echo "${python_version//./}")
-if ! [[ "$python_parsed_version" -gt "360" ]]
-then
-    echo "Error: Python version > 3.6 required"
-    exit 1
+python_parsed_version=$(echo $python_version | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
+if [[ "$python_parsed_version" -lt "36" ]] ; then
+  echo "Error: python version > 3.6 required"
+  exit 1
 fi
-
 
 
 
