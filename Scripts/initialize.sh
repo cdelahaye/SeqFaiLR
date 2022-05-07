@@ -21,17 +21,17 @@ mkdir -p ./logs # create directory for log files
 # --- --- ---
 # Install minimap2 for alignments
 echo "Check wether minimap2 is installed"
-if ! command -v ./Scripts/minimap2/minimap2 &> /dev/null
-then
-  echo "  Installing minimap2 aligner:"
-  git clone https://github.com/lh3/minimap2
-  mv minimap2 ./Scripts/
-  cd ./Scripts/minimap2 && make && cd ../..
-  echo "    minimap2 installed."
-else
-  echo "  minimap2 already installed."
-  echo "  version:"
-  ./Scripts/minimap2/minimap2 --version
+find_minimap=$(minimap2 --version 2>&1)
+if [ ! $? -eq 0 ]; then
+  if ! command -v ./Scripts/minimap2/minimap2 &> /dev/null ; then
+    echo "  Installing minimap2 aligner:"
+    git clone https://github.com/lh3/minimap2
+    mv minimap2 ./Scripts/
+    cd ./Scripts/minimap2 && make && cd ../..
+    echo "    minimap2 installed."
+  fi
+#else
+#  echo "Minimap2 already installed locally"
 fi
 if [ $? -eq 0 ]; then
   echo "Done."
@@ -40,6 +40,7 @@ else
   exit 1
 fi
 echo ""
+
 
 # --- --- ---
 # Rename reference genome filenames and raw reads filenames

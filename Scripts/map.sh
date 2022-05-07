@@ -6,9 +6,16 @@ echo "Running $0"
 
 # This script uses minimap2 aligner to map raw reads against their associated reference genome
 # The following line ensures minimap2 is present in the directory
-if [ ! -d ./Scripts/minimap2 ]; then
-  echo "ERROR: minimap2 cannot be found. Please run ./initialize.sh script." >&2
-  exit 1
+find_minimap=$(minimap2 --version 2>&1)
+if [ ! $? -eq 0 ]; then
+  if ! command -v ./Scripts/minimap2/minimap2 &> /dev/null ; then
+    echo "ERROR: minimap2 cannot be found. Please run ./initialize.sh script." >&2
+    exit 1
+  else
+    minimap_installed="by_git" # if minimap2 was installed by running the ./initialize.sh script of this git repo
+  fi
+else
+  minimap_installed="by_user" # if minimap2 was already installed
 fi
 
 
@@ -39,8 +46,11 @@ do
   fi
   echo -n "  $species_name: forward..."
   echo "$species_name" >> $log_file
-  ./Scripts/minimap2/minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file 1> $output_file 2>>$log_file
-
+  if [[ "$minimap_installed" -eq "by_git" ]] ; then
+    ./Scripts/minimap2/minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file 1> $output_file 2>>$log_file
+  elif [[ "$minimap_installed" -eq "by_user" ]] ; then
+    minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file 1> $output_file 2>>$log_file
+  fi
 
   # Try to map on reverse strand of reference genome
   reference_genome_file=./Data/Reference_genomes/${species_name}_reverse.fasta
@@ -56,7 +66,11 @@ do
   fi
   echo -n "reverse..."
   echo "---" >> $log_file
-  ./Scripts/minimap2/minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file 1> $output_file 2>>$log_file
+  if [[ "$minimap_installed" -eq "by_git" ]] ; then
+    ./Scripts/minimap2/minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file 1> $output_file 2>>$log_file
+  elif [[ "$minimap_installed" -eq "by_user" ]] ; then
+    minimap2 --MD --eqx -ax map-ont --for-only --secondary=no --sam-hit-only $reference_genome_file $path_raw_read_file 1> $output_file 2>>$log_file
+  fi
   echo "" >> $log_file
   echo " Done."
 done
