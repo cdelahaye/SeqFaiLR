@@ -15,6 +15,7 @@ import sys
 import ast
 import matplotlib.pyplot as plt
 import numpy as np
+from math import log10
 
 params = {'legend.fontsize': 12,
           'legend.title_fontsize': 14,
@@ -94,15 +95,19 @@ def get_quality_read(species_name, read_file, read_id, soft_clips):
         quality_str = read_file.readline().rstrip()
         if header.split()[0][1:] == read_id:
             break
-    quality_score = 0
+    quality_score_proba = 0
     soft_clip_start, soft_clip_end = soft_clips
     quality_str = quality_str[soft_clip_start:]
     if soft_clip_end > 0:
         quality_str = quality_str[: -soft_clip_end]
     for char in quality_str:
-        quality_score += ord(char)
-    quality_score_mean = round(quality_score / len(quality_str), 1) - 33
+        q = ord(char) - 33
+        quality_score_proba += 10**(-q/10)
+    quality_score_proba_mean = quality_score_proba / len(quality_str)
+    quality_score_mean = round(-10 * log10(quality_score_proba_mean),1)
     return quality_score_mean, read_file
+
+
 
 
 def compute_err_rate_quality_window(dictionary, species_name, genome, read, read_file, read_id, soft_clips):
@@ -134,7 +139,8 @@ def compute_err_rate_quality_window(dictionary, species_name, genome, read, read
     quality_str_part = quality_str[:WINDOW_LENGTH]
     quality_score = 0
     for char in quality_str_part:
-        quality_score += ord(char) - 33
+        q = ord(char) - 33
+        quality_score += 10**(-q/10)
     while True:
 
         # Initiate read and genome portions
@@ -157,7 +163,9 @@ def compute_err_rate_quality_window(dictionary, species_name, genome, read, read
         error_rate = round(error_count / len(g) * 100, 2)
 
         # Compute mean quality score
-        quality_score_mean = round(quality_score / WINDOW_LENGTH, 1)
+        quality_score_mean = quality_score / WINDOW_LENGTH
+        if quality_score_mean != 0:
+            quality_score_mean = round(-10 * log10(quality_score_mean),1)
 
         # Update dictionary storing results
         if quality_score_mean not in dictionary:
@@ -166,10 +174,12 @@ def compute_err_rate_quality_window(dictionary, species_name, genome, read, read
         dictionary[quality_score_mean][1] += 1
 
         # Update quality portion and score
-        quality_score = quality_score - (ord(quality_str[0]) - 33)
+        q = ord(quality_str[0]) - 33
+        quality_score = quality_score - 10**(-q/10)
         quality_str = quality_str[1:]
         quality_str_part = quality_str[0: WINDOW_LENGTH]
-        quality_score = quality_score + (ord(quality_str_part[-1]) - 33)
+        q = ord(quality_str_part[-1]) - 33
+        quality_score = quality_score + 10**(-q/10)
 
         # Update start positions
         start_pos += 1
@@ -238,7 +248,7 @@ def plot_quality_error_for_reads():
             list_qualities += [quality]
             list_error_rates += [error_rate]
 
-        plt.plot(list_qualities, list_error_rates, label=short_species_name, color=color)
+        plt.plot(list_qualities, list_error_rates, "o", label=short_species_name, color=color)
         if len(list_qualities) == 0:
             print("No data kept. Please consider lower err_qual_min_occ_read value in seqfailr main file.")
             continue
@@ -355,7 +365,7 @@ def plot_quality_error_for_reads_group():
         for quality in sorted(dict_to_plot[group_name]):
             list_qualities += [quality]
             list_error_rates += [np.mean(dict_to_plot[group_name][quality])]
-        plt.plot(list_qualities, list_error_rates, label=group_name, color=dict_group_color[group_name])
+        plt.plot(list_qualities, list_error_rates, "o", label=group_name, color=dict_group_color[group_name])
         output_raw.write(f"{group_name}\t{list_qualities}\t{list_error_rates}\n")
     output_raw.close()
 
@@ -427,7 +437,7 @@ def plot_quality_error_for_read_windows():
             list_qualities += [quality]
             list_error_rates += [error_rate]
 
-        plt.plot(list_qualities, list_error_rates, label=short_species_name, color=color)
+        plt.plot(list_qualities, list_error_rates, "o", label=short_species_name, color=color)
         if len(list_qualities) == 0:
             continue
         if min(list_qualities) < min_value:
@@ -609,4 +619,6 @@ if __name__ == "__main__":
         plot_quality_error_for_read_windows_group()
     else:
         plot_quality_error_for_read_windows()
+
+
 
